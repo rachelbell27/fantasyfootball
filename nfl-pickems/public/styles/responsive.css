@@ -1,0 +1,172 @@
+/* Responsive Design - Mobile First Approach */
+
+/* Tablet (641px and up) */
+@media (min-width: 641px) {
+  #main-content {
+    padding: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+  }
+
+  .game-card-header {
+    flex-direction: row;
+  }
+
+  .game-team-logo {
+    width: 80px;
+    height: 80px;
+  }
+
+  .leaderboard-row {
+    grid-template-columns: 60px 1fr 100px 120px;
+  }
+
+  .incomplete-banner {
+    flex-direction: row;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Desktop (1025px and up) */
+@media (min-width: 1025px) {
+  /* Hide bottom nav, show top nav links */
+  .bottom-nav {
+    display: none;
+  }
+
+  .navbar-links {
+    display: flex;
+  }
+
+  #main-content {
+    padding-bottom: var(--spacing-xl);
+  }
+
+  /* Wider layout for desktop */
+  .game-matchup {
+    gap: var(--spacing-xl);
+  }
+
+  .game-team {
+    padding: var(--spacing-lg);
+  }
+
+  .game-team-logo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .leaderboard-row {
+    grid-template-columns: 80px 1fr 120px 140px;
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* Modal larger on desktop */
+  .modal {
+    max-width: 600px;
+  }
+
+  /* Toast positioning */
+  #toast-container {
+    top: var(--spacing-xl);
+    right: var(--spacing-xl);
+  }
+}
+
+/* Large Desktop (1440px and up) */
+@media (min-width: 1440px) {
+  #main-content {
+    max-width: 1400px;
+  }
+
+  .navbar-content {
+    max-width: 1400px;
+  }
+}
+
+/* Mobile specific (max-width: 640px) */
+@media (max-width: 640px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+
+  .game-team-name {
+    font-size: 0.75rem;
+  }
+
+  .incomplete-banner {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .incomplete-banner .btn {
+    width: 100%;
+  }
+
+  .modal {
+    margin: var(--spacing-md);
+  }
+
+  #toast-container {
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    left: var(--spacing-md);
+  }
+
+  .toast {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .admin-table {
+    font-size: 0.875rem;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger tap targets for touch devices */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .game-team {
+    min-height: 120px;
+  }
+
+  .bottom-nav-item {
+    min-height: 56px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .navbar,
+  .bottom-nav,
+  .btn,
+  #toast-container {
+    display: none !important;
+  }
+
+  #main-content {
+    padding: 0;
+  }
+
+  .card,
+  .game-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

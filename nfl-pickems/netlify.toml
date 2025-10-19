@@ -1,0 +1,28 @@
+[build]
+  command = "npm run build"
+  publish = "public"
+  functions = "netlify/functions"
+
+[dev]
+  command = "echo 'Development server running'"
+  port = 8888
+  publish = "public"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Scheduled function for game sync (runs every minute)
+[[functions]]
+  name = "sync-games"
+  schedule = "* * * * *"
+
+[functions]
+  node_bundler = "esbuild"
