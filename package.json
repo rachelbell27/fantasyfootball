@@ -3,17 +3,18 @@
   "version": "1.0.0",
   "description": "NFL Pick'ems Tracker - Mobile-optimized web app for tracking weekly NFL predictions",
   "main": "index.js",
-  "scripts": {
-    "dev": "netlify dev",
-    "build": "echo 'No build step required for vanilla JS'",
-    "db:migrate": "psql $DATABASE_URL < db/schema.sql",
-    "db:seed": "node db/seed.js"
-  },
+"scripts": {
+  "dev": "netlify dev",
+  "build": "echo 'No build step required for vanilla JS'",
+  "db:migrate": "node db/migrate.js",
+  "db:seed": "node db/seed.js"
+},
   "keywords": ["nfl", "pickems", "fantasy-football", "netlify"],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
     "pg": "^8.13.0"
   },
   "devDependencies": {
