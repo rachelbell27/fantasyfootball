@@ -136,16 +136,16 @@ const HomePage = {
           </div>
 
           <div class="leaderboard-actions">
-            <button class="btn btn-icon btn-text expand-user-btn"
-                    data-user-id="${entry.userId}"
-                    title="View ${entry.displayName}'s weekly performance">
-              <span class="expand-icon">▼</span>
-            </button>
-            <button class="btn btn-icon btn-text compare-user-btn"
+            <button class="btn btn-text compare-user-btn"
                     data-user-id="${entry.userId}"
                     data-user-name="${entry.displayName}"
                     title="Compare picks with ${entry.displayName}">
               Compare
+            </button>
+            <button class="btn btn-icon btn-text expand-user-btn"
+                    data-user-id="${entry.userId}"
+                    title="View ${entry.displayName}'s weekly performance">
+              <span class="expand-icon">▼</span>
             </button>
           </div>
         </div>
@@ -215,7 +215,7 @@ const HomePage = {
               detailsDiv.style.display = 'block';
 
               // Fetch user's weekly stats
-              const response = await API.history.getUserHistory(userId, this.state.leagueId);
+              const response = await API.stats.getUser(userId, this.state.leagueId);
 
               // Render weekly breakdown
               detailsDiv.innerHTML = this.renderWeeklyBreakdown(response.data);
@@ -300,20 +300,23 @@ const HomePage = {
   /**
    * Render weekly breakdown for a user
    */
-  renderWeeklyBreakdown(historyData) {
-    if (!historyData || historyData.length === 0) {
+  renderWeeklyBreakdown(statsData) {
+    const weeklyData = statsData.weekly || [];
+
+    if (weeklyData.length === 0) {
       return '<div class="no-data">No weekly data available</div>';
     }
 
-    const weekRows = historyData.map(week => {
-      const correctPicks = week.correct || 0;
-      const totalPicks = week.total || 0;
+    const weekRows = weeklyData.map(week => {
+      const correctPicks = week.correct_picks || 0;
+      const totalPicks = week.total_picks || 0;
+      const incorrectPicks = week.incorrect_picks || 0;
       const percentage = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100) : 0;
 
       return `
         <div class="week-stat-row">
-          <div class="week-number">Week ${week.weekNumber}</div>
-          <div class="week-record">${correctPicks}-${totalPicks - correctPicks}</div>
+          <div class="week-number">Week ${week.week_number}</div>
+          <div class="week-record">${correctPicks}-${incorrectPicks}</div>
           <div class="week-percentage">${percentage}%</div>
         </div>
       `;

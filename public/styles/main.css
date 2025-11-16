@@ -1616,6 +1616,69 @@
   display: none;
 }
 
+/* Home Page */
+.home-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.home-header {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.home-header h1 {
+  margin-bottom: var(--spacing-xs);
+}
+
+.home-subtitle {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.quick-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.leaderboard-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+.leaderboard-footer {
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+/* User Avatar */
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
 /* Profile Page */
 .profile-page {
   max-width: 800px;
