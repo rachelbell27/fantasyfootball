@@ -48,6 +48,8 @@ exports.handler = async (event, context) => {
       [year, week, leagueId]
     );
 
+    await db.end();
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
