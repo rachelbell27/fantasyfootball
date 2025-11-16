@@ -25,7 +25,7 @@ const Navbar = {
       <nav class="navbar">
         <div class="navbar-content">
           <div class="navbar-logo">
-            🏈 NFL Pick'ems
+            NFL Pick'ems
           </div>
 
           <!-- Desktop Links -->
@@ -71,22 +71,12 @@ const Navbar = {
             </div>
           </div>
           <div class="mobile-menu-links">
-            <a href="#" class="mobile-menu-link" data-page="home">
-              <span>🏠</span> Home
-            </a>
-            <a href="#picks" class="mobile-menu-link" data-page="picks">
-              <span>✅</span> Picks
-            </a>
-            <a href="#history" class="mobile-menu-link" data-page="history">
-              <span>📊</span> History
-            </a>
-            <a href="#comparison" class="mobile-menu-link" data-page="comparison">
-              <span>🔍</span> Compare
-            </a>
-            <a href="#profile" class="mobile-menu-link" data-page="profile">
-              <span>👤</span> Profile
-            </a>
-            ${isAdmin ? '<a href="#admin" class="mobile-menu-link" data-page="admin"><span>⚙️</span> Admin</a>' : ''}
+            <a href="#" class="mobile-menu-link" data-page="home">Home</a>
+            <a href="#picks" class="mobile-menu-link" data-page="picks">Picks</a>
+            <a href="#history" class="mobile-menu-link" data-page="history">History</a>
+            <a href="#comparison" class="mobile-menu-link" data-page="comparison">Compare</a>
+            <a href="#profile" class="mobile-menu-link" data-page="profile">Profile</a>
+            ${isAdmin ? '<a href="#admin" class="mobile-menu-link" data-page="admin">Admin</a>' : ''}
           </div>
           <div class="mobile-menu-footer">
             <button class="btn btn-secondary" id="mobile-logout-btn" style="width: 100%;">Logout</button>

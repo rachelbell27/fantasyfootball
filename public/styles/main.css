@@ -1499,9 +1499,7 @@
 }
 
 .mobile-menu-link {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  display: block;
   padding: 1rem 1.5rem;
   color: var(--text-primary);
   text-decoration: none;
@@ -1516,10 +1514,6 @@
   background-color: var(--primary-light);
   color: var(--primary);
   font-weight: 600;
-}
-
-.mobile-menu-link span {
-  font-size: 1.25rem;
 }
 
 .mobile-menu-footer {
