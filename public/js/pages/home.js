@@ -109,8 +109,8 @@ const HomePage = {
         : '';
 
       return `
-        <div class="leaderboard-row ${isCurrentUser ? 'current-user' : ''}"
-             style="${rowStyle}"
+        <div class="leaderboard-row ${isCurrentUser ? 'current-user' : ''} expandable-row"
+             style="background-color: ${entry.primaryColor ? Colors.hexToRgba(entry.primaryColor, 0.05) : 'transparent'}; ${entry.primaryColor ? `border-left: 4px solid ${entry.primaryColor}` : ''}"
              data-user-id="${entry.userId}">
           <div class="leaderboard-rank">
             ${this.getRankIcon(entry.rank)}
@@ -118,7 +118,7 @@ const HomePage = {
           </div>
 
           <div class="leaderboard-user">
-            <div class="user-avatar" style="${Colors.getAvatarStyle(entry.primaryColor)}">
+            <div class="user-avatar" style="background-color: ${entry.primaryColor || '#8AB4F8'}; color: ${Colors.getContrastColor(entry.primaryColor || '#8AB4F8')};">
               ${entry.displayName.charAt(0).toUpperCase()}
             </div>
             <div class="user-info">
@@ -136,13 +136,21 @@ const HomePage = {
           </div>
 
           <div class="leaderboard-actions">
-            <button class="btn btn-icon compare-user-btn"
+            <button class="btn btn-icon btn-text expand-user-btn"
+                    data-user-id="${entry.userId}"
+                    title="View ${entry.displayName}'s weekly performance">
+              <span class="expand-icon">▼</span>
+            </button>
+            <button class="btn btn-icon btn-text compare-user-btn"
                     data-user-id="${entry.userId}"
                     data-user-name="${entry.displayName}"
                     title="Compare picks with ${entry.displayName}">
-              🔍
+              Compare
             </button>
           </div>
+        </div>
+        <div class="leaderboard-row-details" id="details-${entry.userId}" style="display: none;">
+          <div class="loading">Loading weekly breakdown...</div>
         </div>
       `;
     }).join('');
@@ -188,6 +196,53 @@ const HomePage = {
    * Attach event listeners
    */
   attachEventListeners(container) {
+    // Expand user details buttons
+    const expandButtons = container.querySelectorAll('.expand-user-btn');
+    expandButtons.forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const userId = btn.dataset.userId;
+        const detailsDiv = document.getElementById(`details-${userId}`);
+        const expandIcon = btn.querySelector('.expand-icon');
+        const row = btn.closest('.leaderboard-row');
+
+        if (detailsDiv.style.display === 'none' || !detailsDiv.style.display) {
+          // Expand
+          try {
+            // Check if we already loaded the data
+            if (!detailsDiv.dataset.loaded) {
+              detailsDiv.innerHTML = '<div class="loading">Loading weekly breakdown...</div>';
+              detailsDiv.style.display = 'block';
+
+              // Fetch user's weekly stats
+              const response = await API.history.getUserHistory(userId, this.state.leagueId);
+
+              // Render weekly breakdown
+              detailsDiv.innerHTML = this.renderWeeklyBreakdown(response.data);
+              detailsDiv.dataset.loaded = 'true';
+            } else {
+              detailsDiv.style.display = 'block';
+            }
+
+            expandIcon.textContent = '▲';
+            row.classList.add('expanded');
+          } catch (error) {
+            console.error('Error loading weekly breakdown:', error);
+            detailsDiv.innerHTML = `
+              <div class="error-message">
+                Failed to load weekly breakdown. Please try again.
+              </div>
+            `;
+          }
+        } else {
+          // Collapse
+          detailsDiv.style.display = 'none';
+          expandIcon.textContent = '▼';
+          row.classList.remove('expanded');
+        }
+      });
+    });
+
     // Compare user buttons
     const compareButtons = container.querySelectorAll('.compare-user-btn');
     compareButtons.forEach(btn => {
@@ -240,6 +295,40 @@ const HomePage = {
         await this.render(container);
       }
     });
+  },
+
+  /**
+   * Render weekly breakdown for a user
+   */
+  renderWeeklyBreakdown(historyData) {
+    if (!historyData || historyData.length === 0) {
+      return '<div class="no-data">No weekly data available</div>';
+    }
+
+    const weekRows = historyData.map(week => {
+      const correctPicks = week.correct || 0;
+      const totalPicks = week.total || 0;
+      const percentage = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100) : 0;
+
+      return `
+        <div class="week-stat-row">
+          <div class="week-number">Week ${week.weekNumber}</div>
+          <div class="week-record">${correctPicks}-${totalPicks - correctPicks}</div>
+          <div class="week-percentage">${percentage}%</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="weekly-breakdown">
+        <div class="breakdown-header">
+          <div class="week-number">Week</div>
+          <div class="week-record">Record</div>
+          <div class="week-percentage">Accuracy</div>
+        </div>
+        ${weekRows}
+      </div>
+    `;
   },
 
   /**

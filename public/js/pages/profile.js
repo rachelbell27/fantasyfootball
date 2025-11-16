@@ -7,7 +7,8 @@
 const ProfilePage = {
   state: {
     user: null,
-    editing: false
+    editing: false,
+    showPasswordForm: false
   },
 
   /**
@@ -81,12 +82,10 @@ const ProfilePage = {
 
           <div class="form-group">
             <label class="form-label" for="primary-color">Primary Color</label>
-            <div class="color-input-group">
-              <input type="color" id="primary-color" class="color-input"
-                     value="${this.state.user.primaryColor || '#8AB4F8'}">
-              <input type="text" id="primary-color-text" class="form-input"
-                     value="${this.state.user.primaryColor || '#8AB4F8'}">
-            </div>
+            <input type="text" id="primary-color" class="form-input"
+                   value="${this.state.user.primaryColor || '#8AB4F8'}"
+                   placeholder="#8AB4F8">
+            <small class="form-hint">Enter a hex color code (e.g., #8AB4F8)</small>
           </div>
 
           <div class="form-group">
@@ -113,9 +112,28 @@ const ProfilePage = {
    * Render password change section
    */
   renderPasswordChange() {
+    if (!this.state.showPasswordForm) {
+      return `
+        <div class="password-change card">
+          <div class="password-change-header">
+            <div>
+              <h2>Password</h2>
+              <p class="password-subtitle">Update your password</p>
+            </div>
+            <button class="btn btn-secondary" id="show-password-form">
+              Change Password
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="password-change card">
-        <h2>Change Password</h2>
+        <div class="password-change-header">
+          <h2>Change Password</h2>
+          <button class="btn btn-text" id="hide-password-form">Cancel</button>
+        </div>
         <form id="password-form">
           <div class="form-group">
             <label class="form-label" for="current-password">Current Password</label>
@@ -125,6 +143,7 @@ const ProfilePage = {
           <div class="form-group">
             <label class="form-label" for="new-password">New Password</label>
             <input type="password" id="new-password" class="form-input" required minlength="8">
+            <small class="form-hint">Must be at least 8 characters</small>
           </div>
 
           <div class="form-group">
@@ -155,17 +174,21 @@ const ProfilePage = {
       });
     }
 
-    // Color picker sync
-    const colorInput = container.querySelector('#primary-color');
-    const colorText = container.querySelector('#primary-color-text');
-    if (colorInput && colorText) {
-      colorInput.addEventListener('input', (e) => {
-        colorText.value = e.target.value;
+    // Show password form button
+    const showPasswordBtn = container.querySelector('#show-password-form');
+    if (showPasswordBtn) {
+      showPasswordBtn.addEventListener('click', () => {
+        this.state.showPasswordForm = true;
+        this.render(container);
       });
-      colorText.addEventListener('input', (e) => {
-        if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
-          colorInput.value = e.target.value;
-        }
+    }
+
+    // Hide password form button
+    const hidePasswordBtn = container.querySelector('#hide-password-form');
+    if (hidePasswordBtn) {
+      hidePasswordBtn.addEventListener('click', () => {
+        this.state.showPasswordForm = false;
+        this.render(container);
       });
     }
 
@@ -236,8 +259,9 @@ const ProfilePage = {
       UI.showLoading();
       await API.auth.changePassword(currentPassword, newPassword);
 
-      // Reset form
-      container.querySelector('#password-form').reset();
+      // Reset form and hide
+      this.state.showPasswordForm = false;
+      await this.render(container);
 
       UI.showToast('Password changed successfully!', 'success');
       UI.hideLoading();
