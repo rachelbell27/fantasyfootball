@@ -6,8 +6,73 @@
   functions = "netlify/functions"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/validate"
+  to = "/.netlify/functions/auth-validate"
+  status = 200
+
+[[redirects]]
+  from = "/api/games/current-week"
+  to = "/.netlify/functions/games-current-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/games/get"
+  to = "/.netlify/functions/games-get"
+  status = 200
+
+[[redirects]]
+  from = "/api/games/weeks"
+  to = "/.netlify/functions/games-weeks"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/get"
+  to = "/.netlify/functions/picks-get"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/submit"
+  to = "/.netlify/functions/picks-submit"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/compare-week"
+  to = "/.netlify/functions/picks-compare-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/leaderboard/week"
+  to = "/.netlify/functions/leaderboard-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/leaderboard/season"
+  to = "/.netlify/functions/leaderboard-season"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/profile"
+  to = "/.netlify/functions/users-profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/update-profile"
+  to = "/.netlify/functions/users-update-profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/list"
+  to = "/.netlify/functions/users-list"
+  status = 200
+
+[[redirects]]
+  from = "/api/stats/user"
+  to = "/.netlify/functions/stats-user"
   status = 200
 
 [[redirects]]

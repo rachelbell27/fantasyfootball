@@ -1,4 +1,4 @@
-const { createClient } = require('../db');
+const { createClient } = require('./db');
 
 /**
  * GET /api/leaderboard/week?week={n}&leagueId={id}

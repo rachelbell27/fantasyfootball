@@ -1,4 +1,4 @@
-const { createClient } = require('../db');
+const { createClient } = require('./db');
 
 /**
  * PUT /api/users/profile
