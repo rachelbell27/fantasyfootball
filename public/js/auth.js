@@ -13,14 +13,15 @@ const Auth = {
 
     try {
       const response = await API.auth.validate();
-      this.currentUser = response.user;
-      Storage.set('currentUser', response.user);
-      
-      // Apply user's custom colors
-      if (response.user.primary_color && response.user.secondary_color) {
-        Colors.applyUserColors(response.user.primary_color, response.user.secondary_color);
+      const user = response.data?.user || response.user;
+      this.currentUser = user;
+      Storage.set('currentUser', user);
+
+      // Apply user's custom colors (using camelCase property names)
+      if (user.primaryColor && user.secondaryColor) {
+        Colors.applyUserColors(user.primaryColor, user.secondaryColor);
       }
-      
+
       return true;
     } catch (error) {
       console.error('Auth validation failed:', error);
@@ -33,17 +34,20 @@ const Auth = {
   async login(username, password) {
     try {
       const response = await API.auth.login(username, password);
-      
+
+      // Extract data from response (API returns { data: { token, user } })
+      const { token, user } = response.data || response;
+
       // Store token and user data
-      Storage.set('authToken', response.token);
-      Storage.set('currentUser', response.user);
-      this.currentUser = response.user;
-      
+      Storage.set('authToken', token);
+      Storage.set('currentUser', user);
+      this.currentUser = user;
+
       // Apply user's custom colors
-      if (response.user.primary_color && response.user.secondary_color) {
-        Colors.applyUserColors(response.user.primary_color, response.user.secondary_color);
+      if (user.primaryColor && user.secondaryColor) {
+        Colors.applyUserColors(user.primaryColor, user.secondaryColor);
       }
-      
+
       return response;
     } catch (error) {
       throw error;
@@ -94,10 +98,10 @@ const Auth = {
   updateCurrentUser(userData) {
     this.currentUser = { ...this.currentUser, ...userData };
     Storage.set('currentUser', this.currentUser);
-    
-    // Update colors if changed
-    if (userData.primary_color && userData.secondary_color) {
-      Colors.applyUserColors(userData.primary_color, userData.secondary_color);
+
+    // Update colors if changed (using camelCase property names)
+    if (userData.primaryColor && userData.secondaryColor) {
+      Colors.applyUserColors(userData.primaryColor, userData.secondaryColor);
     }
   },
 
