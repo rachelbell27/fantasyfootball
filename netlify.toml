@@ -96,6 +96,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/games/sync"
+  to = "/.netlify/functions/admin-games-sync"
+  status = 200
+
+[[redirects]]
   from = "/api/setup/database"
   to = "/.netlify/functions/setup-database"
   status = 200
