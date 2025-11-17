@@ -1679,6 +1679,56 @@
   flex-shrink: 0;
 }
 
+/* Picks Page */
+.picks-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.picks-header {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.picks-header h1 {
+  margin-bottom: var(--spacing-xs);
+}
+
+.picks-subtitle {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.picks-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+/* History Page */
+.history-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.history-header {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.history-header h1 {
+  margin-bottom: var(--spacing-xs);
+}
+
+.history-subtitle {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.history-container {
+  margin-bottom: var(--spacing-xl);
+}
+
 /* Profile Page */
 .profile-page {
   max-width: 800px;
