@@ -59,8 +59,10 @@ const App = {
       this.showPage('history');
     } else if (hash === 'profile' || path === '/profile') {
       this.showPage('profile');
-    } else if (hash.startsWith('comparison') || path === '/comparison') {
-      this.showPage('comparison');
+    } else if (hash === 'compare-picks' || path === '/compare-picks') {
+      this.showPage('compare-picks');
+    } else if (hash.startsWith('stats') || path === '/stats' || hash.startsWith('comparison') || path === '/comparison') {
+      this.showPage('stats');
     } else if (hash === 'admin' || path === '/admin') {
       if (Auth.isAdmin()) {
         this.showPage('admin');
@@ -96,7 +98,10 @@ const App = {
         case 'profile':
           await ProfilePage.render(mainContent);
           break;
-        case 'comparison':
+        case 'compare-picks':
+          await ComparePicksPage.render(mainContent);
+          break;
+        case 'stats':
           await ComparisonPage.init();
           await ComparisonPage.render(mainContent);
           break;

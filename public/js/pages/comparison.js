@@ -18,7 +18,7 @@ const ComparisonPage = {
    */
   async init() {
     // Get parameters from URL hash
-    // Format: #comparison?week=5&year=2024&leagueId=1
+    // Format: #stats?week=5&year=2024&leagueId=1
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
 
     this.state.week = parseInt(params.get('week')) || null;
@@ -79,7 +79,7 @@ const ComparisonPage = {
       `;
 
       // Render the comparison view component
-      const viewContainer = container.querySelector('#comparison-view-container');
+      const viewContainer = container.querySelector('#stats-view-container');
       await ComparisonView.render(viewContainer, this.state.data);
 
       // Attach event listeners
@@ -152,7 +152,7 @@ const ComparisonPage = {
    */
   attachEventListeners(container) {
     // Week selector change
-    const weekSelect = container.querySelector('#comparison-week');
+    const weekSelect = container.querySelector('#stats-week');
     if (weekSelect) {
       weekSelect.addEventListener('change', () => {
         this.updateUrl();
@@ -160,7 +160,7 @@ const ComparisonPage = {
     }
 
     // Year selector change
-    const yearSelect = container.querySelector('#comparison-year');
+    const yearSelect = container.querySelector('#stats-year');
     if (yearSelect) {
       yearSelect.addEventListener('change', () => {
         this.updateUrl();
@@ -180,15 +180,15 @@ const ComparisonPage = {
    * Update URL and reload
    */
   updateUrl() {
-    const weekSelect = document.querySelector('#comparison-week');
-    const yearSelect = document.querySelector('#comparison-year');
+    const weekSelect = document.querySelector('#stats-week');
+    const yearSelect = document.querySelector('#stats-year');
 
     if (weekSelect && yearSelect) {
       const week = weekSelect.value;
       const year = yearSelect.value;
       const leagueId = this.state.leagueId;
 
-      window.location.hash = `#comparison?week=${week}&year=${year}&leagueId=${leagueId}`;
+      window.location.hash = `#stats?week=${week}&year=${year}&leagueId=${leagueId}`;
     }
   },
 
@@ -196,8 +196,8 @@ const ComparisonPage = {
    * Load comparison data
    */
   async loadComparison(container) {
-    const weekSelect = container.querySelector('#comparison-week');
-    const yearSelect = container.querySelector('#comparison-year');
+    const weekSelect = container.querySelector('#stats-week');
+    const yearSelect = container.querySelector('#stats-year');
 
     if (weekSelect && yearSelect) {
       this.state.week = parseInt(weekSelect.value);

@@ -102,7 +102,7 @@ const HomePage = {
         <a href="#picks" class="btn btn-primary">
           Make Your Picks
         </a>
-        <a href="#comparison?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
+        <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
            class="btn btn-secondary">
           📊 Compare Picks
         </a>
@@ -190,7 +190,7 @@ const HomePage = {
           ${rows}
         </div>
         <div class="leaderboard-footer">
-          <a href="#comparison?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
+          <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
              class="btn btn-secondary btn-full-width">
             📊 See Full Week ${this.state.currentWeek} Comparison
           </a>
@@ -275,7 +275,7 @@ const HomePage = {
         const userName = btn.dataset.userName;
 
         // Navigate to comparison page
-        window.location.hash = `#comparison?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}`;
+        window.location.hash = `#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}`;
       });
     });
 

@@ -142,7 +142,7 @@ const HistoryPage = {
       <div class="week-stats card">
         <div class="stats-header">
           <h2>Week ${this.state.selectedWeek} Summary</h2>
-          <a href="#comparison?week=${this.state.selectedWeek}&year=${this.state.selectedYear}&leagueId=${this.state.leagueId}"
+          <a href="#stats?week=${this.state.selectedWeek}&year=${this.state.selectedYear}&leagueId=${this.state.leagueId}"
              class="btn btn-secondary">
             📊 Compare with Others
           </a>
@@ -351,7 +351,7 @@ const HistoryPage = {
         const year = btn.dataset.year;
 
         // Navigate to comparison page for this week
-        window.location.hash = `#comparison?week=${week}&year=${year}&leagueId=${this.state.leagueId}`;
+        window.location.hash = `#stats?week=${week}&year=${year}&leagueId=${this.state.leagueId}`;
       });
     });
   }

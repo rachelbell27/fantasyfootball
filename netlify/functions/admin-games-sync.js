@@ -140,8 +140,7 @@ exports.handler = async (event, context) => {
             WHEN g.winner = p.predicted_winner THEN true
             WHEN g.winner IS NOT NULL AND g.winner != p.predicted_winner THEN false
             ELSE NULL
-          END,
-          updated_at = NOW()
+          END
         FROM games g
         WHERE p.game_id = g.id
           AND g.season_year = $1
