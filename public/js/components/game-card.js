@@ -15,9 +15,9 @@ const GameCard = {
    * @param {Number} leagueId - League ID
    */
   render(game, userPick = null, locked = false, week = null, year = null, leagueId = 1) {
-    const isFinal = game.gameStatus === 'final';
-    const isInProgress = game.gameStatus === 'in_progress';
-    const isPending = game.gameStatus === 'scheduled';
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
+    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'in';
+    const isPending = game.gameStatus === 'scheduled' || game.gameStatus === 'pre';
 
     // Determine if card should be locked
     const isLocked = locked || isFinal || isInProgress;
@@ -26,7 +26,7 @@ const GameCard = {
       <div class="game-card ${isLocked ? 'locked' : ''}" data-game-id="${game.id}">
         ${this.renderHeader(game)}
         ${this.renderMatchup(game, userPick, isLocked)}
-        ${this.renderFooter(game, userPick, week, year, leagueId)}
+        ${this.renderFooter(game, userPick)}
       </div>
     `;
   },
@@ -44,10 +44,13 @@ const GameCard = {
       minute: '2-digit'
     });
 
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
+    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'in';
+
     let statusBadge = '';
-    if (game.gameStatus === 'final') {
+    if (isFinal) {
       statusBadge = '<span class="game-status-badge final">Final</span>';
-    } else if (game.gameStatus === 'in_progress') {
+    } else if (isInProgress) {
       statusBadge = '<span class="game-status-badge in-progress">Live</span>';
     } else {
       statusBadge = `<span class="game-status-badge scheduled">${formattedTime}</span>`;
@@ -71,7 +74,7 @@ const GameCard = {
     const homeSelected = userPick?.predictedWinner === 'home';
     const tieSelected = userPick?.predictedWinner === 'tie';
 
-    const isFinal = game.gameStatus === 'final';
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
 
     return `
       <div class="game-matchup">
@@ -119,8 +122,8 @@ const GameCard = {
   /**
    * Render footer with actions
    */
-  renderFooter(game, userPick, week, year, leagueId) {
-    const isFinal = game.gameStatus === 'final';
+  renderFooter(game, userPick) {
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
 
     let pickResult = '';
     if (userPick && isFinal) {
@@ -139,15 +142,6 @@ const GameCard = {
       <div class="game-card-footer">
         <div class="pick-status">
           ${pickResult}
-        </div>
-        <div class="game-actions">
-          ${week && year ? `
-            <a href="#comparison?week=${week}&year=${year}&leagueId=${leagueId}"
-               class="btn btn-text btn-sm"
-               title="See everyone's picks for this week">
-              See all picks
-            </a>
-          ` : ''}
         </div>
       </div>
     `;
