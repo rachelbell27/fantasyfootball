@@ -8,12 +8,15 @@ const Auth = {
   async init() {
     const token = Storage.get('authToken');
     if (!token) {
+      console.log('[Auth] No token found');
       return false;
     }
 
     try {
+      console.log('[Auth] Validating token...');
       const response = await API.auth.validate();
       const user = response.data?.user || response.user;
+      console.log('[Auth] User validated:', user);
       this.currentUser = user;
       Storage.set('currentUser', user);
 
@@ -24,7 +27,7 @@ const Auth = {
 
       return true;
     } catch (error) {
-      console.error('Auth validation failed:', error);
+      console.error('[Auth] Validation failed:', error);
       this.logout();
       return false;
     }
@@ -33,10 +36,12 @@ const Auth = {
   // Login
   async login(username, password) {
     try {
+      console.log('[Auth] Logging in...');
       const response = await API.auth.login(username, password);
 
       // Extract data from response (API returns { data: { token, user } })
       const { token, user } = response.data || response;
+      console.log('[Auth] Login successful:', user);
 
       // Store token and user data
       Storage.set('authToken', token);
@@ -50,6 +55,7 @@ const Auth = {
 
       return response;
     } catch (error) {
+      console.error('[Auth] Login failed:', error);
       throw error;
     }
   },
@@ -81,7 +87,10 @@ const Auth = {
 
   // Check if user is admin
   isAdmin() {
-    return this.currentUser?.is_admin || false;
+    // Backend returns isAdmin (camelCase), not is_admin (snake_case)
+    const isAdmin = this.currentUser?.isAdmin || false;
+    console.log('[Auth] isAdmin check:', { currentUser: this.currentUser, isAdmin });
+    return isAdmin;
   },
 
   // Get current user
@@ -91,7 +100,8 @@ const Auth = {
 
   // Check if user must change password
   mustChangePassword() {
-    return this.currentUser?.must_change_password || false;
+    // Backend returns mustChangePassword (camelCase), not must_change_password (snake_case)
+    return this.currentUser?.mustChangePassword || false;
   },
 
   // Update current user data

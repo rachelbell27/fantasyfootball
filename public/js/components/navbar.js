@@ -15,10 +15,14 @@ const Navbar = {
    */
   init() {
     const navContainer = document.getElementById('navigation');
-    if (!navContainer) return;
+    if (!navContainer) {
+      console.log('[Navbar] Navigation container not found');
+      return;
+    }
 
     const user = Auth.currentUser;
     const isAdmin = Auth.isAdmin();
+    console.log('[Navbar] Initializing navbar:', { user, isAdmin });
 
     navContainer.innerHTML = `
       <!-- Navbar -->

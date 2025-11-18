@@ -17,21 +17,25 @@ const GameSync = {
    */
   async start() {
     if (this.isActive) {
-      console.log('Game sync already active');
+      console.log('[GameSync] Game sync already active');
       return;
     }
 
     try {
+      console.log('[GameSync] Starting game sync...');
+
       // Get current week
       const weekResponse = await API.games.getCurrentWeek();
       this.currentWeek = weekResponse.data.weekNumber;
       this.currentYear = weekResponse.data.year;
+      console.log(`[GameSync] Current week: Week ${this.currentWeek}, ${this.currentYear}`);
 
       // Check if there are active games
       const hasActiveGames = await this.checkForActiveGames();
+      console.log(`[GameSync] Has active games: ${hasActiveGames}`);
 
       if (hasActiveGames) {
-        console.log(`Starting game sync for Week ${this.currentWeek}, ${this.currentYear}`);
+        console.log(`[GameSync] ✓ Starting automatic game sync for Week ${this.currentWeek}, ${this.currentYear}`);
         this.isActive = true;
 
         // Do an immediate sync
@@ -41,11 +45,13 @@ const GameSync = {
         this.syncInterval = setInterval(() => {
           this.syncGames();
         }, this.syncFrequency);
+
+        console.log(`[GameSync] Sync interval set to ${this.syncFrequency / 1000} seconds`);
       } else {
-        console.log('No active games, sync not started');
+        console.log('[GameSync] ℹ No active games found, sync not started');
       }
     } catch (error) {
-      console.error('Error starting game sync:', error);
+      console.error('[GameSync] ✗ Error starting game sync:', error);
     }
   },
 
@@ -58,7 +64,7 @@ const GameSync = {
       this.syncInterval = null;
     }
     this.isActive = false;
-    console.log('Game sync stopped');
+    console.log('[GameSync] ⏹ Game sync stopped');
   },
 
   /**
@@ -68,6 +74,7 @@ const GameSync = {
     try {
       const response = await API.games.getGames(this.currentWeek, this.currentYear);
       const games = response.data || [];
+      console.log(`[GameSync] Checking ${games.length} games for activity`);
 
       const now = new Date();
 
@@ -90,9 +97,10 @@ const GameSync = {
         return isInProgress || (isUpcoming && isRecent);
       });
 
+      console.log(`[GameSync] Found ${activeGames.length} active games`);
       return activeGames.length > 0;
     } catch (error) {
-      console.error('Error checking for active games:', error);
+      console.error('[GameSync] Error checking for active games:', error);
       return false;
     }
   },
@@ -102,37 +110,44 @@ const GameSync = {
    */
   async syncGames() {
     try {
-      console.log(`Syncing games for Week ${this.currentWeek}...`);
+      console.log(`[GameSync] 🔄 Syncing games for Week ${this.currentWeek}...`);
 
       // Call the admin sync endpoint
-      const response = await API.admin.games.sync();
+      const response = await API.admin.games.sync(this.currentWeek, this.currentYear);
+      console.log('[GameSync] Sync response:', response);
 
       if (response.data) {
-        const { gamesUpdated, gamesAdded } = response.data;
+        const { gamesUpdated, gamesAdded, totalGames } = response.data;
+        console.log(`[GameSync] ✓ Sync complete: ${gamesAdded} added, ${gamesUpdated} updated, ${totalGames} total games`);
 
         if (gamesUpdated > 0 || gamesAdded > 0) {
-          console.log(`Game sync complete: ${gamesAdded} added, ${gamesUpdated} updated`);
+          // Show toast notification
+          if (window.UI && typeof window.UI.showToast === 'function') {
+            UI.showToast(`Games updated: ${gamesUpdated} updated, ${gamesAdded} added`, 'success');
+          }
 
           // Dispatch event so pages can refresh if needed
           window.dispatchEvent(new CustomEvent('games-updated', {
-            detail: { gamesAdded, gamesUpdated }
+            detail: { gamesAdded, gamesUpdated, totalGames }
           }));
+        } else {
+          console.log('[GameSync] No changes detected');
         }
       }
 
       // Check if we should stop syncing (all games finished)
       const hasActiveGames = await this.checkForActiveGames();
       if (!hasActiveGames) {
-        console.log('All games finished, stopping sync');
+        console.log('[GameSync] ℹ All games finished, stopping sync');
         this.stop();
       }
     } catch (error) {
       // Don't stop syncing on errors, just log them
-      console.error('Error syncing games:', error);
+      console.error('[GameSync] ✗ Error syncing games:', error);
 
       // If it's an auth error, stop syncing
-      if (error.message && error.message.includes('401')) {
-        console.log('Auth error, stopping sync');
+      if (error.message && (error.message.includes('401') || error.message.includes('unauthorized'))) {
+        console.log('[GameSync] Auth error, stopping sync');
         this.stop();
       }
     }
