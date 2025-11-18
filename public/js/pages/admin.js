@@ -164,30 +164,95 @@ const AdminPage = {
    * Load games tab
    */
   async loadGamesTab(container) {
+    // Get current week
+    let currentWeek = 11;
+    let currentYear = new Date().getFullYear();
+
+    try {
+      const weekResponse = await API.games.getCurrentWeek();
+      currentWeek = weekResponse.data.weekNumber;
+      currentYear = weekResponse.data.year;
+    } catch (error) {
+      console.log('Could not get current week, using default');
+    }
+
     container.innerHTML = `
       <div class="admin-section card">
         <div class="section-header">
           <h2>Games Management</h2>
-          <button class="btn btn-primary" id="sync-games-btn">
-            Sync from ESPN
-          </button>
         </div>
-        <p>Game synchronization and management coming soon...</p>
+
+        <div class="sync-controls">
+          <div class="form-group">
+            <label class="form-label">Week to Sync:</label>
+            <div style="display: flex; gap: var(--spacing-md); align-items: center;">
+              <select id="sync-week" class="form-input" style="max-width: 150px;">
+                ${Array.from({length: 18}, (_, i) => i + 1).map(week => `
+                  <option value="${week}" ${week === currentWeek ? 'selected' : ''}>
+                    Week ${week}
+                  </option>
+                `).join('')}
+              </select>
+
+              <select id="sync-year" class="form-input" style="max-width: 150px;">
+                ${[2024, 2025].map(year => `
+                  <option value="${year}" ${year === currentYear ? 'selected' : ''}>
+                    ${year}
+                  </option>
+                `).join('')}
+              </select>
+
+              <button class="btn btn-primary" id="sync-games-btn">
+                Sync from ESPN
+              </button>
+            </div>
+            <small class="form-hint">Select a week and year, then click Sync to fetch games from ESPN</small>
+          </div>
+
+          <div id="sync-result" class="sync-result" style="margin-top: var(--spacing-md);"></div>
+        </div>
       </div>
     `;
 
     // Sync button
     const syncBtn = container.querySelector('#sync-games-btn');
+    const weekSelect = container.querySelector('#sync-week');
+    const yearSelect = container.querySelector('#sync-year');
+    const resultDiv = container.querySelector('#sync-result');
+
     if (syncBtn) {
       syncBtn.addEventListener('click', async () => {
+        const week = parseInt(weekSelect.value);
+        const year = parseInt(yearSelect.value);
+
         try {
-          UI.showLoading();
-          await API.admin.games.sync();
+          syncBtn.disabled = true;
+          syncBtn.textContent = 'Syncing...';
+          resultDiv.innerHTML = '<p class="info-message">Fetching games from ESPN...</p>';
+
+          const response = await API.admin.games.sync(week, year);
+
+          resultDiv.innerHTML = `
+            <div class="success-message">
+              <p><strong>✓ Sync Complete!</strong></p>
+              <p>Week ${response.data.week}, ${response.data.year}</p>
+              <p>${response.data.gamesAdded} games added, ${response.data.gamesUpdated} games updated</p>
+              <p>Total: ${response.data.totalGames} games</p>
+            </div>
+          `;
+
           UI.showToast('Games synced successfully!', 'success');
-          UI.hideLoading();
         } catch (error) {
+          resultDiv.innerHTML = `
+            <div class="error-message">
+              <p><strong>✗ Sync Failed</strong></p>
+              <p>${error.message || 'Failed to sync games'}</p>
+            </div>
+          `;
           UI.showToast(error.message || 'Failed to sync games', 'error');
-          UI.hideLoading();
+        } finally {
+          syncBtn.disabled = false;
+          syncBtn.textContent = 'Sync from ESPN';
         }
       });
     }

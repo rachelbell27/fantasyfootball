@@ -38,7 +38,17 @@ exports.handler = async (event, context) => {
     // Parse request body
     const { week, year } = JSON.parse(event.body || '{}');
     const currentYear = year || new Date().getFullYear();
-    const weekNumber = week || 1;
+
+    // Default to current NFL week (approximate based on date)
+    let defaultWeek = 1;
+    const now = new Date();
+    const seasonStart = new Date(currentYear, 8, 1); // September 1st
+    if (now >= seasonStart) {
+      const daysSinceStart = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24));
+      defaultWeek = Math.min(Math.floor(daysSinceStart / 7) + 1, 18);
+    }
+
+    const weekNumber = week || defaultWeek;
 
     // Fetch games from ESPN API
     const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${currentYear}&seasontype=2&week=${weekNumber}`;

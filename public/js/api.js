@@ -188,9 +188,14 @@ const API = {
     },
 
     games: {
-      async sync() {
+      async sync(week = null, year = null) {
+        const body = {};
+        if (week) body.week = week;
+        if (year) body.year = year;
+
         return API.request('/admin/games/sync', {
           method: 'POST',
+          body: JSON.stringify(body),
         });
       },
 
