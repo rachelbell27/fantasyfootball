@@ -61,6 +61,9 @@ const PicksPage = {
 
       this.attachEventListeners(container);
 
+      // Listen for game updates from GameSync
+      this.setupGameUpdateListener(container);
+
     } catch (error) {
       console.error('Error loading picks page:', error);
       container.innerHTML = `
@@ -72,6 +75,26 @@ const PicksPage = {
         </div>
       `;
     }
+  },
+
+  /**
+   * Setup listener for automatic game updates
+   */
+  setupGameUpdateListener(container) {
+    // Remove any existing listener
+    if (this.gameUpdateHandler) {
+      window.removeEventListener('games-updated', this.gameUpdateHandler);
+    }
+
+    // Create new handler
+    this.gameUpdateHandler = async (event) => {
+      console.log('Games updated, refreshing picks page...');
+      // Re-render the page with updated data
+      await this.render(container);
+    };
+
+    // Add listener
+    window.addEventListener('games-updated', this.gameUpdateHandler);
   },
 
   /**

@@ -42,6 +42,9 @@ const HomePage = {
 
       this.attachEventListeners(container);
 
+      // Listen for game updates from GameSync
+      this.setupGameUpdateListener(container);
+
     } catch (error) {
       console.error('Error loading home page:', error);
       container.innerHTML = `
@@ -56,6 +59,26 @@ const HomePage = {
         </div>
       `;
     }
+  },
+
+  /**
+   * Setup listener for automatic game updates
+   */
+  setupGameUpdateListener(container) {
+    // Remove any existing listener
+    if (this.gameUpdateHandler) {
+      window.removeEventListener('games-updated', this.gameUpdateHandler);
+    }
+
+    // Create new handler
+    this.gameUpdateHandler = async (event) => {
+      console.log('Games updated, refreshing home page...');
+      // Re-render the page with updated data
+      await this.render(container);
+    };
+
+    // Add listener
+    window.addEventListener('games-updated', this.gameUpdateHandler);
   },
 
   /**

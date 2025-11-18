@@ -22,10 +22,15 @@ const App = {
         if (Auth.mustChangePassword()) {
           this.showChangePasswordModal();
         }
-        
+
         // Initialize navigation
         Navbar.init();
-        
+
+        // Start automatic game syncing
+        GameSync.start().catch(err => {
+          console.error('Failed to start game sync:', err);
+        });
+
         // Route to appropriate page
         this.route();
       }
