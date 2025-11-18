@@ -19,6 +19,21 @@ const ComparisonView = {
    * @param {Object} data - Comparison data from API
    */
   async render(container, data) {
+    if (!container) {
+      console.error('[ComparisonView] Container is null');
+      return;
+    }
+
+    if (!data) {
+      console.error('[ComparisonView] Data is null');
+      container.innerHTML = `
+        <div class="comparison-error card">
+          <p>No comparison data available</p>
+        </div>
+      `;
+      return;
+    }
+
     this.state.data = data;
 
     container.innerHTML = `

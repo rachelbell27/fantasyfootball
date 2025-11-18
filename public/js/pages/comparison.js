@@ -60,11 +60,13 @@ const ComparisonPage = {
 
     try {
       // Fetch comparison data
+      console.log('[Comparison] Fetching comparison data for week', this.state.week, this.state.year);
       const response = await API.picks.compareWeek(
         this.state.week,
         this.state.year,
         this.state.leagueId
       );
+      console.log('[Comparison] API response:', response);
 
       this.state.data = response.data;
 
@@ -80,13 +82,15 @@ const ComparisonPage = {
 
       // Render the comparison view component
       const viewContainer = container.querySelector('#comparison-view-container');
+      console.log('[Comparison] View container:', viewContainer);
+      console.log('[Comparison] Data to render:', this.state.data);
       await ComparisonView.render(viewContainer, this.state.data);
 
       // Attach event listeners
       this.attachEventListeners(container);
 
     } catch (error) {
-      console.error('Error loading comparison data:', error);
+      console.error('[Comparison] Error loading comparison data:', error);
       container.innerHTML = `
         <div class="comparison-page">
           <div class="comparison-error card">
