@@ -207,6 +207,10 @@
     grid-template-columns: 1fr;
   }
 
+  .games-list {
+    grid-template-columns: 1fr;
+  }
+
   .comparison-card-stats {
     grid-template-columns: repeat(3, 1fr);
   }

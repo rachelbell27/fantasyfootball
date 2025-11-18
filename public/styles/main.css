@@ -1803,6 +1803,163 @@
   margin-bottom: var(--spacing-xl);
 }
 
+.history-controls {
+  margin-bottom: var(--spacing-lg);
+}
+
+.week-stats {
+  margin-bottom: var(--spacing-lg);
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.stats-header h2 {
+  margin: 0;
+}
+
+.games-history h2 {
+  margin-bottom: var(--spacing-md);
+}
+
+.games-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.game-history-card {
+  padding: var(--spacing-md);
+  border-left: 3px solid var(--border-color);
+}
+
+.game-history-card.correct {
+  border-left-color: var(--success);
+}
+
+.game-history-card.incorrect {
+  border-left-color: var(--error);
+}
+
+.game-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.75rem;
+}
+
+.game-history-matchup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.game-history-matchup .team {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.game-history-matchup .team.picked {
+  background-color: var(--primary-light);
+}
+
+.team-logo-small {
+  width: 32px;
+  height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.game-history-matchup .team-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-history-matchup .team-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-history-matchup .team-abbr {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+}
+
+.game-history-matchup .team-score {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  min-width: 24px;
+  text-align: right;
+}
+
+.game-history-matchup .team-score.winner {
+  color: var(--primary);
+}
+
+.game-history-matchup .vs-separator {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding-left: 40px;
+}
+
+.game-history-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+}
+
+.your-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.pick-label {
+  color: var(--text-secondary);
+}
+
+.pick-value {
+  font-weight: 500;
+}
+
+.result-icon {
+  margin-left: var(--spacing-xs);
+}
+
+.result-icon.correct {
+  color: var(--success);
+}
+
+.result-icon.incorrect {
+  color: var(--error);
+}
+
+.no-pick {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 /* Profile Page */
 .profile-page {
   max-width: 800px;

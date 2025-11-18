@@ -212,8 +212,8 @@ const HistoryPage = {
    * Render individual game history card
    */
   renderGameHistoryCard(game, userPick) {
-    const isFinal = game.gameStatus === 'final';
-    const isInProgress = game.gameStatus === 'in_progress';
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
+    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'in';
 
     let resultClass = '';
     let resultIcon = '';
@@ -248,9 +248,8 @@ const HistoryPage = {
               minute: '2-digit'
             })}
           </div>
-          <div class="game-status-badge ${game.gameStatus}">
-            ${game.gameStatus === 'final' ? 'Final' :
-              game.gameStatus === 'in_progress' ? 'Live' : 'Scheduled'}
+          <div class="game-status-badge ${isFinal ? 'final' : isInProgress ? 'in-progress' : 'scheduled'}">
+            ${isFinal ? 'Final' : isInProgress ? 'Live' : 'Scheduled'}
           </div>
         </div>
 
@@ -307,7 +306,7 @@ const HistoryPage = {
    * Calculate week stats
    */
   calculateWeekStats(games, picks) {
-    const finalGames = games.filter(g => g.gameStatus === 'final');
+    const finalGames = games.filter(g => g.gameStatus === 'final' || g.gameStatus === 'status_final');
     const correctPicks = picks.filter(p => p.isCorrect === true).length;
     const incorrectPicks = picks.filter(p => p.isCorrect === false).length;
     const pendingPicks = picks.filter(p => p.isCorrect === null).length;
