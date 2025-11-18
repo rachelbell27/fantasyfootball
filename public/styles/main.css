@@ -1811,6 +1811,31 @@
   margin-bottom: var(--spacing-lg);
 }
 
+.week-stats-compact {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-md);
+}
+
+.week-stats-compact .stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.week-stats-compact .stat-value {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.week-stats-compact .stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 .stats-header {
   display: flex;
   justify-content: space-between;

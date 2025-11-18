@@ -139,44 +139,23 @@ const HistoryPage = {
    */
   renderWeekStats(stats) {
     return `
-      <div class="week-stats card">
-        <div class="stats-header">
-          <h2>Week ${this.state.selectedWeek} Summary</h2>
-          <a href="#stats?week=${this.state.selectedWeek}&year=${this.state.selectedYear}&leagueId=${this.state.leagueId}"
-             class="btn btn-secondary">
-            📊 Compare with Others
-          </a>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value" style="color: var(--success)">
-              ${stats.correct}
-            </div>
-            <div class="stat-label">Correct</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-value" style="color: var(--error)">
-              ${stats.incorrect}
-            </div>
-            <div class="stat-label">Incorrect</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-value" style="color: var(--text-secondary)">
-              ${stats.pending}
-            </div>
-            <div class="stat-label">Pending</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-value" style="color: var(--primary)">
-              ${stats.percentage}%
-            </div>
-            <div class="stat-label">Success Rate</div>
-          </div>
-        </div>
+      <div class="week-stats-compact card">
+        <span class="stat-item">
+          <span class="stat-value" style="color: var(--success)">${stats.correct}</span>
+          <span class="stat-label">Correct</span>
+        </span>
+        <span class="stat-item">
+          <span class="stat-value" style="color: var(--error)">${stats.incorrect}</span>
+          <span class="stat-label">Incorrect</span>
+        </span>
+        <span class="stat-item">
+          <span class="stat-value" style="color: var(--text-secondary)">${stats.pending}</span>
+          <span class="stat-label">Pending</span>
+        </span>
+        <span class="stat-item">
+          <span class="stat-value" style="color: var(--primary)">${stats.percentage}%</span>
+          <span class="stat-label">Rate</span>
+        </span>
       </div>
     `;
   },
@@ -291,12 +270,6 @@ const HistoryPage = {
               `
               : '<span class="no-pick">No pick made</span>'}
           </div>
-          <button class="btn btn-text btn-sm see-all-picks-btn"
-                  data-game-id="${game.id}"
-                  data-week="${this.state.selectedWeek}"
-                  data-year="${this.state.selectedYear}">
-            See all picks
-          </button>
         </div>
       </div>
     `;
