@@ -76,6 +76,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/users"
+  to = "/.netlify/functions/users-list"
+  status = 200
+
+[[redirects]]
   from = "/api/users/list"
   to = "/.netlify/functions/users-list"
   status = 200

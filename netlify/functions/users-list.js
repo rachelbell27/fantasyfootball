@@ -22,6 +22,8 @@ exports.handler = async (event, context) => {
        ORDER BY display_name ASC`
     );
 
+    await db.end();
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
