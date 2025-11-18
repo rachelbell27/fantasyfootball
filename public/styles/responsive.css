@@ -199,8 +199,12 @@
     font-size: 0.65rem;
   }
 
-  .comparison-card-stats {
+  .user-comparisons {
     grid-template-columns: 1fr;
+  }
+
+  .comparison-card-stats {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .stats-grid {

@@ -79,7 +79,7 @@ const ComparisonPage = {
       `;
 
       // Render the comparison view component
-      const viewContainer = container.querySelector('#stats-view-container');
+      const viewContainer = container.querySelector('#comparison-view-container');
       await ComparisonView.render(viewContainer, this.state.data);
 
       // Attach event listeners
@@ -152,7 +152,7 @@ const ComparisonPage = {
    */
   attachEventListeners(container) {
     // Week selector change
-    const weekSelect = container.querySelector('#stats-week');
+    const weekSelect = container.querySelector('#comparison-week');
     if (weekSelect) {
       weekSelect.addEventListener('change', () => {
         this.updateUrl();
@@ -160,7 +160,7 @@ const ComparisonPage = {
     }
 
     // Year selector change
-    const yearSelect = container.querySelector('#stats-year');
+    const yearSelect = container.querySelector('#comparison-year');
     if (yearSelect) {
       yearSelect.addEventListener('change', () => {
         this.updateUrl();
@@ -180,8 +180,8 @@ const ComparisonPage = {
    * Update URL and reload
    */
   updateUrl() {
-    const weekSelect = document.querySelector('#stats-week');
-    const yearSelect = document.querySelector('#stats-year');
+    const weekSelect = document.querySelector('#comparison-week');
+    const yearSelect = document.querySelector('#comparison-year');
 
     if (weekSelect && yearSelect) {
       const week = weekSelect.value;
@@ -196,8 +196,8 @@ const ComparisonPage = {
    * Load comparison data
    */
   async loadComparison(container) {
-    const weekSelect = container.querySelector('#stats-week');
-    const yearSelect = container.querySelector('#stats-year');
+    const weekSelect = container.querySelector('#comparison-week');
+    const yearSelect = container.querySelector('#comparison-year');
 
     if (weekSelect && yearSelect) {
       this.state.week = parseInt(weekSelect.value);

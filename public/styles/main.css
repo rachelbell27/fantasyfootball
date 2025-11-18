@@ -138,8 +138,8 @@
 
 /* User Comparison Cards */
 .user-comparisons {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-md);
 }
 
@@ -147,6 +147,7 @@
   position: relative;
   transition: all var(--transition-base);
   overflow: hidden;
+  padding: var(--spacing-md);
 }
 
 .user-comparison-card:hover {
@@ -156,33 +157,45 @@
 
 .comparison-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .user-info {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  align-items: flex-start;
+  gap: var(--spacing-sm);
   flex: 1;
+  min-width: 0;
 }
 
 .user-details {
   flex: 1;
+  min-width: 0;
 }
 
 .user-name {
   margin: 0 0 var(--spacing-xs) 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-agreement {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.user-comparison-card .user-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
 /* Agreement Dots */
@@ -224,10 +237,14 @@
 
 /* Agreement Rate & Badge */
 .agreement-rate {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: var(--radius-sm);
+}
+
+.agreement-badge {
+  font-size: 0.7rem;
 }
 
 .agreement-rate.badge-twins,
@@ -257,9 +274,10 @@
 
 /* Expand Button */
 .expand-btn {
-  padding: var(--spacing-sm);
-  min-width: 40px;
+  padding: var(--spacing-xs);
+  min-width: 32px;
   transition: transform var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .expand-btn .expand-icon {
@@ -274,29 +292,30 @@
 /* Comparison Card Stats */
 .comparison-card-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
   background-color: var(--surface-variant);
   border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 2px;
+  text-align: center;
 }
 
 .stat-item .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .stat-item .stat-value {
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-primary);
 }
