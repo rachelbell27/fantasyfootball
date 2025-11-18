@@ -83,8 +83,9 @@ const API = {
       });
     },
 
-    async list() {
-      return API.request('/users');
+    async list(leagueId = null) {
+      const query = leagueId ? `?leagueId=${leagueId}` : '';
+      return API.request(`/users${query}`);
     },
   },
 
@@ -107,6 +108,10 @@ const API = {
   picks: {
     async get(week, year, leagueId) {
       return API.request(`/picks?week=${week}&year=${year}&leagueId=${leagueId}`);
+    },
+
+    async getAll(week, year, leagueId) {
+      return API.request(`/picks/all?week=${week}&year=${year}&leagueId=${leagueId}`);
     },
 
     async submit(picks) {

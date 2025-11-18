@@ -36,6 +36,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/picks/all"
+  to = "/.netlify/functions/picks-all"
+  status = 200
+
+[[redirects]]
   from = "/api/picks"
   to = "/.netlify/functions/picks-get"
   status = 200

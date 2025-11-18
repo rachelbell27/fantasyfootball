@@ -34,11 +34,11 @@ const ComparePicksPage = {
       this.state.games = gamesResponse.data;
 
       // Fetch all users in league
-      const usersResponse = await API.users.list();
+      const usersResponse = await API.users.list(this.state.leagueId);
       this.state.users = usersResponse.data;
 
-      // Fetch all picks for this week
-      const picksResponse = await API.picks.get(this.state.currentWeek, this.state.currentYear, this.state.leagueId);
+      // Fetch all picks for this week/league from all users
+      const picksResponse = await API.picks.getAll(this.state.currentWeek, this.state.currentYear, this.state.leagueId);
       this.state.allPicks = picksResponse.data;
 
       container.innerHTML = `

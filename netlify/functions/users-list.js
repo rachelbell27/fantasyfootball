@@ -1,8 +1,8 @@
 const { createClient } = require('./db');
 
 /**
- * GET /api/users
- * Get all users (for admin or leaderboard)
+ * GET /api/users?leagueId={id}
+ * Get all users (optionally filtered by league)
  */
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'GET') {
@@ -13,14 +13,32 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    const params = event.queryStringParameters || {};
+    const leagueId = params.leagueId ? parseInt(params.leagueId) : null;
+
     const db = await createClient();
 
-    const result = await db.query(
-      `SELECT id, username, display_name, timezone,
-              primary_color, secondary_color, is_admin, created_at
-       FROM users
-       ORDER BY display_name ASC`
-    );
+    let result;
+    if (leagueId) {
+      // Get users in a specific league
+      result = await db.query(
+        `SELECT u.id, u.username, u.display_name, u.timezone,
+                u.primary_color, u.secondary_color, u.is_admin, u.created_at
+         FROM users u
+         JOIN league_members lm ON u.id = lm.user_id
+         WHERE lm.league_id = $1
+         ORDER BY u.display_name ASC`,
+        [leagueId]
+      );
+    } else {
+      // Get all users
+      result = await db.query(
+        `SELECT id, username, display_name, timezone,
+                primary_color, secondary_color, is_admin, created_at
+         FROM users
+         ORDER BY display_name ASC`
+      );
+    }
 
     await db.end();
 
