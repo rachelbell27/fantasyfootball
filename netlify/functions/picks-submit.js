@@ -65,7 +65,8 @@ exports.handler = async (event, context) => {
       }
 
       const game = gameResult.rows[0];
-      if (game.game_status !== 'scheduled') {
+      // Allow picks for scheduled games (both 'scheduled' and 'pre' status)
+      if (game.game_status !== 'scheduled' && game.game_status !== 'pre') {
         continue; // Skip if game already started
       }
 
