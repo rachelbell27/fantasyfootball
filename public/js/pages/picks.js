@@ -198,6 +198,8 @@ const PicksPage = {
       leagueId: this.state.leagueId
     }));
 
+    console.log('Submitting picks:', picksArray);
+
     if (picksArray.length === 0) {
       UI.showToast('No picks to submit', 'warning');
       return;
@@ -205,8 +207,9 @@ const PicksPage = {
 
     try {
       UI.showLoading();
-      await API.picks.submit(picksArray);
-      UI.showToast('Picks submitted successfully!', 'success');
+      const response = await API.picks.submit(picksArray);
+      console.log('Submit response:', response);
+      UI.showToast(`${response.data.submitted} pick(s) submitted successfully!`, 'success');
       await this.render(container);
       UI.hideLoading();
     } catch (error) {
