@@ -47,10 +47,12 @@ exports.handler = async (event, context) => {
 
     // Process each pick
     const results = [];
+    const skipped = [];
     for (const pick of picks) {
       const { gameId, predictedWinner, leagueId } = pick;
 
       if (!gameId || !predictedWinner || !leagueId) {
+        skipped.push({ gameId, reason: 'missing_data' });
         continue;
       }
 
@@ -61,12 +63,14 @@ exports.handler = async (event, context) => {
       );
 
       if (gameResult.rows.length === 0) {
+        skipped.push({ gameId, reason: 'game_not_found' });
         continue;
       }
 
       const game = gameResult.rows[0];
       // Allow picks for scheduled games (both 'scheduled' and 'pre' status)
       if (game.game_status !== 'scheduled' && game.game_status !== 'pre') {
+        skipped.push({ gameId, reason: 'game_started', status: game.game_status });
         continue; // Skip if game already started
       }
 
@@ -83,13 +87,16 @@ exports.handler = async (event, context) => {
       results.push(upsertResult.rows[0].id);
     }
 
+    console.log('Picks submission result:', { submitted: results.length, skipped });
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         data: {
           submitted: results.length,
-          pickIds: results
+          pickIds: results,
+          skipped: skipped
         },
         message: `${results.length} pick(s) submitted successfully`
       })

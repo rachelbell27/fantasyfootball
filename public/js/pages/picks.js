@@ -209,7 +209,17 @@ const PicksPage = {
       UI.showLoading();
       const response = await API.picks.submit(picksArray);
       console.log('Submit response:', response);
-      UI.showToast(`${response.data.submitted} pick(s) submitted successfully!`, 'success');
+
+      if (response.data.skipped && response.data.skipped.length > 0) {
+        console.log('Skipped picks:', response.data.skipped);
+      }
+
+      if (response.data.submitted > 0) {
+        UI.showToast(`${response.data.submitted} pick(s) submitted successfully!`, 'success');
+      } else {
+        UI.showToast('No picks could be submitted. Check console for details.', 'warning');
+      }
+
       await this.render(container);
       UI.hideLoading();
     } catch (error) {
