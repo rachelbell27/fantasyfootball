@@ -68,8 +68,9 @@ exports.handler = async (event, context) => {
       }
 
       const game = gameResult.rows[0];
-      // Allow picks for scheduled games (both 'scheduled' and 'pre' status)
-      if (game.game_status !== 'scheduled' && game.game_status !== 'pre') {
+      // Allow picks for scheduled games (various status formats from ESPN API)
+      const allowedStatuses = ['scheduled', 'pre', 'status_scheduled'];
+      if (!allowedStatuses.includes(game.game_status)) {
         skipped.push({ gameId, reason: 'game_started', status: game.game_status });
         continue; // Skip if game already started
       }
