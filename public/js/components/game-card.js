@@ -16,8 +16,8 @@ const GameCard = {
    */
   render(game, userPick = null, locked = false, week = null, year = null, leagueId = 1) {
     const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
-    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'in';
-    const isPending = game.gameStatus === 'scheduled' || game.gameStatus === 'pre';
+    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'status_in_progress';
+    const isPending = game.gameStatus === 'scheduled' || game.gameStatus === 'status_scheduled' || game.gameStatus === 'pre';
 
     // Determine if card should be locked
     const isLocked = locked || isFinal || isInProgress;
