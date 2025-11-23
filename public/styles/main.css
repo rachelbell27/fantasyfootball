@@ -1920,8 +1920,18 @@
   border-radius: var(--radius-sm);
 }
 
+.game-history-matchup .team.clickable {
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.game-history-matchup .team.clickable:hover {
+  background-color: var(--surface-variant);
+}
+
 .game-history-matchup .team.picked {
   background-color: var(--primary-light);
+  border: 2px solid var(--primary);
 }
 
 .team-logo-small {

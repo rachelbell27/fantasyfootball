@@ -150,20 +150,112 @@ const PicksPage = {
       const gameTime = new Date(game.gameTime);
       const gameHasStarted = gameTime < now;
 
-      return GameCard.render(
-        game,
-        userPick,
-        gameHasStarted, // Lock this specific game if it has started
-        this.state.currentWeek,
-        this.state.currentYear,
-        this.state.leagueId
-      );
+      return this.renderGamePickCard(game, userPick, gameHasStarted);
     }).join('');
 
     return `
       <div class="picks-form">
-        <div class="games-grid">
+        <div class="games-list">
           ${gameCards}
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Render individual game pick card (history-style layout)
+   */
+  renderGamePickCard(game, userPick, isLocked) {
+    const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
+    const isInProgress = game.gameStatus === 'in_progress' || game.gameStatus === 'in';
+
+    let resultClass = '';
+    let resultIcon = '';
+
+    if (userPick && isFinal) {
+      if (userPick.isCorrect) {
+        resultClass = 'correct';
+        resultIcon = '✓';
+      } else {
+        resultClass = 'incorrect';
+        resultIcon = '✗';
+      }
+    }
+
+    const yourPickTeam = userPick
+      ? userPick.predictedWinner === 'home'
+        ? game.homeTeam
+        : userPick.predictedWinner === 'away'
+          ? game.awayTeam
+          : 'Tie'
+      : null;
+
+    return `
+      <div class="game-history-card card ${resultClass} ${isLocked ? 'locked' : ''}" data-game-id="${game.id}">
+        <div class="game-history-header">
+          <div class="game-time">
+            ${new Date(game.gameTime).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            })}
+          </div>
+          <div class="game-status-badge ${isFinal ? 'final' : isInProgress ? 'in-progress' : 'scheduled'}">
+            ${isFinal ? 'Final' : isInProgress ? 'Live' : 'Scheduled'}
+          </div>
+        </div>
+
+        <div class="game-history-matchup">
+          <div class="team ${userPick?.predictedWinner === 'away' ? 'picked' : ''} ${!isLocked ? 'clickable' : ''}"
+               data-team="away"
+               data-game-id="${game.id}"
+               ${!isLocked ? 'role="button" tabindex="0"' : ''}>
+            <img src="${game.awayTeamLogo}" alt="${game.awayTeam}" class="team-logo-small">
+            <div class="team-info">
+              <div class="team-name">${game.awayTeam}</div>
+              <div class="team-abbr">${game.awayTeamAbbr}</div>
+            </div>
+            <div class="team-score ${game.winner === 'away' ? 'winner' : ''}">
+              ${game.awayScore !== null ? game.awayScore : '-'}
+            </div>
+          </div>
+
+          <div class="vs-separator">@</div>
+
+          <div class="team ${userPick?.predictedWinner === 'home' ? 'picked' : ''} ${!isLocked ? 'clickable' : ''}"
+               data-team="home"
+               data-game-id="${game.id}"
+               ${!isLocked ? 'role="button" tabindex="0"' : ''}>
+            <img src="${game.homeTeamLogo}" alt="${game.homeTeam}" class="team-logo-small">
+            <div class="team-info">
+              <div class="team-name">${game.homeTeam}</div>
+              <div class="team-abbr">${game.homeTeamAbbr}</div>
+            </div>
+            <div class="team-score ${game.winner === 'home' ? 'winner' : ''}">
+              ${game.homeScore !== null ? game.homeScore : '-'}
+            </div>
+          </div>
+        </div>
+
+        <div class="game-history-footer">
+          <div class="your-pick">
+            ${userPick
+              ? `
+                <span class="pick-label">Your Pick:</span>
+                <span class="pick-value">
+                  ${yourPickTeam}
+                  ${isFinal ? `<span class="result-icon ${resultClass}">${resultIcon}</span>` : ''}
+                </span>
+              `
+              : '<span class="no-pick">No pick made</span>'}
+          </div>
+          ${!isLocked ? `
+            <button class="btn-text tie-btn" data-team="tie" data-game-id="${game.id}">
+              ${userPick?.predictedWinner === 'tie' ? '✓ Tie' : 'Tie'}
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -173,16 +265,94 @@ const PicksPage = {
    * Attach event listeners
    */
   attachEventListeners(container) {
-    // Attach game card listeners
-    GameCard.attachEventListeners(container, (gameId, teamSelection) => {
-      this.state.picks[gameId] = teamSelection;
-      this.updatePicksCount(container);
+    // Attach team selection listeners
+    const teams = container.querySelectorAll('.team[role="button"]');
+    teams.forEach(team => {
+      team.addEventListener('click', () => {
+        const gameId = parseInt(team.dataset.gameId);
+        const teamSelection = team.dataset.team;
+
+        this.state.picks[gameId] = teamSelection;
+        this.updatePickSelection(container, gameId, teamSelection);
+        this.updatePicksCount(container);
+      });
+
+      // Keyboard support
+      team.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          team.click();
+        }
+      });
+    });
+
+    // Tie button listeners
+    const tieBtns = container.querySelectorAll('.tie-btn');
+    tieBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const gameId = parseInt(btn.dataset.gameId);
+
+        this.state.picks[gameId] = 'tie';
+        this.updatePickSelection(container, gameId, 'tie');
+        this.updatePicksCount(container);
+      });
     });
 
     // Submit button
     const submitBtn = container.querySelector('#submit-picks-btn');
     if (submitBtn) {
       submitBtn.addEventListener('click', () => this.submitPicks(container));
+    }
+  },
+
+  /**
+   * Update pick selection in UI
+   */
+  updatePickSelection(container, gameId, selection) {
+    const card = container.querySelector(`.game-history-card[data-game-id="${gameId}"]`);
+    if (!card) return;
+
+    // Remove all 'picked' classes from teams in this card
+    card.querySelectorAll('.team').forEach(team => {
+      team.classList.remove('picked');
+    });
+
+    // Add 'picked' class to selected team
+    if (selection === 'away' || selection === 'home') {
+      const selectedTeam = card.querySelector(`.team[data-team="${selection}"]`);
+      if (selectedTeam) {
+        selectedTeam.classList.add('picked');
+      }
+    }
+
+    // Update tie button
+    const tieBtn = card.querySelector('.tie-btn');
+    if (tieBtn) {
+      if (selection === 'tie') {
+        tieBtn.textContent = '✓ Tie';
+      } else {
+        tieBtn.textContent = 'Tie';
+      }
+    }
+
+    // Update footer pick display
+    const yourPick = card.querySelector('.your-pick');
+    if (yourPick) {
+      const game = this.state.games.find(g => g.id === gameId);
+      let pickTeam = '';
+      if (selection === 'home') {
+        pickTeam = game.homeTeam;
+      } else if (selection === 'away') {
+        pickTeam = game.awayTeam;
+      } else {
+        pickTeam = 'Tie';
+      }
+
+      yourPick.innerHTML = `
+        <span class="pick-label">Your Pick:</span>
+        <span class="pick-value">${pickTeam}</span>
+      `;
     }
   },
 
