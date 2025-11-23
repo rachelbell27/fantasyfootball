@@ -86,10 +86,9 @@ const GameSync = {
         const fourHoursFromNow = new Date(now.getTime() + (4 * 60 * 60 * 1000));
         const twelveHoursAgo = new Date(now.getTime() - (12 * 60 * 60 * 1000));
 
-        const isInProgress = game.gameStatus &&
-          game.gameStatus !== 'final' &&
-          game.gameStatus !== 'status_final' &&
-          game.gameStatus !== 'pre';
+        // Only consider games truly in progress (not scheduled, not final)
+        const inProgressStatuses = ['in_progress', 'in', 'halftime', 'status_in_progress'];
+        const isInProgress = game.gameStatus && inProgressStatuses.includes(game.gameStatus);
 
         const isUpcoming = gameTime > now && gameTime < fourHoursFromNow;
         const isRecent = gameTime > twelveHoursAgo;

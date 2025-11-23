@@ -937,9 +937,12 @@
 }
 
 .pick-indicator {
-  font-size: 0.75rem;
+  font-size: 1.25rem;
   color: var(--success);
-  font-weight: 600;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .game-vs {
@@ -1602,12 +1605,13 @@
   right: -100%;
   width: 280px;
   height: calc(100vh - 60px);
-  background-color: var(--surface-color);
+  background-color: var(--surface);
   border-left: 1px solid var(--border-color);
   transition: right 0.3s ease;
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--shadow-lg);
 }
 
 .mobile-menu.open {
@@ -1650,7 +1654,7 @@
 }
 
 .mobile-menu-link:hover {
-  background-color: var(--hover-color);
+  background-color: var(--surface-variant);
 }
 
 .mobile-menu-link.active {

@@ -95,7 +95,7 @@ const GameCard = {
         <!-- VS Separator -->
         <div class="game-vs">
           <div class="vs-text">@</div>
-          ${!isLocked && game.gameStatus === 'scheduled' ? `
+          ${!isLocked && (game.gameStatus === 'scheduled' || game.gameStatus === 'status_scheduled' || game.gameStatus === 'pre') ? `
             <button class="btn-text tie-btn" data-team="tie" data-game-id="${game.id}">
               ${tieSelected ? '✓ Tie' : 'Tie'}
             </button>
@@ -199,9 +199,14 @@ const GameCard = {
    * Update card selection UI
    */
   updateCardSelection(card, selection) {
-    // Remove all selected classes
+    // Remove all selected classes and pick indicators
     card.querySelectorAll('.game-team').forEach(team => {
       team.classList.remove('selected');
+      // Remove existing pick indicator
+      const existingIndicator = team.querySelector('.pick-indicator');
+      if (existingIndicator) {
+        existingIndicator.remove();
+      }
     });
 
     // Remove tie selection
@@ -210,11 +215,16 @@ const GameCard = {
       tieBtn.textContent = 'Tie';
     }
 
-    // Add selected class to chosen team
+    // Add selected class and checkmark to chosen team
     if (selection === 'away' || selection === 'home') {
       const selectedTeam = card.querySelector(`.game-team[data-team="${selection}"]`);
       if (selectedTeam) {
         selectedTeam.classList.add('selected');
+        // Add pick indicator checkmark
+        const indicator = document.createElement('div');
+        indicator.className = 'pick-indicator';
+        indicator.textContent = '✓';
+        selectedTeam.appendChild(indicator);
       }
     } else if (selection === 'tie' && tieBtn) {
       tieBtn.textContent = '✓ Tie';
