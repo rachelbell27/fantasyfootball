@@ -629,59 +629,81 @@
   font-size: 1.5rem;
 }
 
-/* Leaderboard Styles */
+/* Leaderboard Styles - Mobile First */
 .leaderboard {
-  background-color: var(--surface);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  background-color: transparent;
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+  padding: 0 var(--spacing-md);
 }
 
 .leaderboard-header {
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
+  padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  border-bottom: none;
+  text-align: center;
 }
 
 .leaderboard-title {
-  font-size: 1.5rem;
-  font-weight: 500;
-  margin-bottom: var(--spacing-sm);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .leaderboard-row {
-  display: grid;
-  grid-template-columns: 50px 1fr 80px 100px;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
-  align-items: center;
-  transition: background-color var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  border-left: 4px solid transparent;
+  transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .leaderboard-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .leaderboard-row:hover {
   background-color: var(--surface-variant);
+  transform: translateX(2px);
 }
 
 .leaderboard-row.current-user {
   background-color: var(--primary-light);
-  border-left: 4px solid var(--primary);
+  border-left-color: var(--primary);
 }
 
 .leaderboard-rank {
-  font-size: 1.25rem;
-  font-weight: 500;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rank-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.rank-number {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 .leaderboard-user {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
+  flex: 1;
 }
 
 .leaderboard-avatar {
@@ -700,9 +722,36 @@
 }
 
 .leaderboard-points {
-  font-size: 1.25rem;
-  font-weight: 500;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm);
+  background-color: var(--surface-variant);
+  border-radius: var(--radius-md);
+  min-width: 80px;
+}
+
+.points-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  line-height: 1;
+}
+
+.points-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.user-record {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
 }
 
 .leaderboard-record {
@@ -715,7 +764,9 @@
   display: flex;
   gap: var(--spacing-xs);
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-color);
 }
 
 /* Expandable Row Styles */
@@ -1676,42 +1727,50 @@
   display: none;
 }
 
-/* Home Page */
+/* Home Page - Mobile First */
 .home-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--spacing-lg);
+  padding: 0;
 }
 
 .home-header {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
   text-align: center;
+  padding: var(--spacing-md) var(--spacing-md) 0;
 }
 
 .home-header h1 {
   margin-bottom: var(--spacing-xs);
+  font-size: 1.5rem;
 }
 
 .home-subtitle {
   color: var(--text-secondary);
   margin: 0;
+  font-size: 0.875rem;
 }
 
 .quick-actions {
   display: flex;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
   justify-content: center;
   flex-wrap: wrap;
+  padding: 0 var(--spacing-md);
 }
 
 .leaderboard-container {
   margin-bottom: var(--spacing-xl);
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .leaderboard-footer {
-  padding: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-lg) var(--spacing-md) 0;
+  border-top: none;
+  text-align: center;
 }
 
 /* User Avatar */

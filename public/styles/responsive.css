@@ -16,8 +16,74 @@
     height: 80px;
   }
 
+  /* Home Page - Tablet Layout */
+  .home-page {
+    padding: var(--spacing-md);
+  }
+
+  .home-header {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-lg) 0 0;
+  }
+
+  .home-header h1 {
+    font-size: 2rem;
+  }
+
+  .home-subtitle {
+    font-size: 1rem;
+  }
+
+  .quick-actions {
+    padding: 0;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  /* Leaderboard - Tablet Layout */
+  .leaderboard {
+    padding: 0;
+  }
+
+  .leaderboard-header {
+    padding: var(--spacing-lg) 0 var(--spacing-md);
+  }
+
+  .leaderboard-title {
+    font-size: 1.25rem;
+  }
+
   .leaderboard-row {
-    grid-template-columns: 60px 1fr 100px 120px;
+    /* Keep mobile stacking for better readability on tablets */
+  }
+
+  .leaderboard-rank {
+    min-width: 60px;
+  }
+
+  .leaderboard-user {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .leaderboard-points {
+    min-width: 100px;
+  }
+
+  .points-value {
+    font-size: 1.875rem;
+  }
+
+  .leaderboard-actions {
+    padding-top: var(--spacing-sm);
+  }
+
+  .leaderboard-footer {
+    padding-top: var(--spacing-xl);
   }
 
   .incomplete-banner {
@@ -58,9 +124,52 @@
     height: 96px;
   }
 
+  /* Home Page - Desktop Layout */
+  .home-page {
+    padding: var(--spacing-lg);
+  }
+
+  .home-header h1 {
+    font-size: 2.5rem;
+  }
+
+  .home-subtitle {
+    font-size: 1.125rem;
+  }
+
+  /* Leaderboard - Desktop Layout */
+  .leaderboard-header {
+    padding: var(--spacing-xl) 0 var(--spacing-lg);
+  }
+
+  .leaderboard-title {
+    font-size: 1.5rem;
+  }
+
   .leaderboard-row {
-    grid-template-columns: 80px 1fr 120px 140px;
-    padding: var(--spacing-lg) var(--spacing-xl);
+    padding: var(--spacing-lg);
+  }
+
+  .leaderboard-rank {
+    min-width: 80px;
+  }
+
+  .leaderboard-points {
+    min-width: 120px;
+  }
+
+  .leaderboard-actions {
+    min-width: 140px;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .points-value {
+    font-size: 2rem;
   }
 
   .stats-grid {
@@ -115,22 +224,13 @@
     font-size: 0.75rem;
   }
 
-  /* Make leaderboard row wrap better on mobile */
-  .leaderboard-row {
-    grid-template-columns: 40px 1fr 70px 80px;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
+  /* Mobile leaderboard already optimized in main.css */
 
-  /* Hide compare button text on mobile, keep icon only */
+  /* Simplify action buttons on mobile */
   .compare-user-btn {
-    font-size: 0;
-    padding: var(--spacing-xs);
-  }
-
-  .compare-user-btn::before {
-    content: "⚖";
-    font-size: 1rem;
+    font-size: 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    white-space: nowrap;
   }
 
   .incomplete-banner {

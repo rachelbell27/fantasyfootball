@@ -132,31 +132,36 @@ const HomePage = {
 
       return `
         <div class="leaderboard-row ${isCurrentUser ? 'current-user' : ''} expandable-row"
-             style="background-color: ${entry.primaryColor ? Colors.hexToRgba(entry.primaryColor, 0.05) : 'transparent'}; ${entry.primaryColor ? `border-left: 4px solid ${entry.primaryColor}` : ''}"
+             style="${entry.primaryColor ? `border-left-color: ${entry.primaryColor}` : ''}"
              data-user-id="${entry.userId}">
-          <div class="leaderboard-rank">
-            ${this.getRankIcon(entry.rank)}
-            <span class="rank-number">#${entry.rank}</span>
-          </div>
 
-          <div class="leaderboard-user">
-            <div class="user-avatar" style="background-color: ${entry.primaryColor || '#8AB4F8'}; color: ${Colors.getContrastColor(entry.primaryColor || '#8AB4F8')};">
-              ${entry.displayName.charAt(0).toUpperCase()}
+          <!-- Top row: Rank, User, Points -->
+          <div style="display: flex; align-items: center; gap: var(--spacing-md); width: 100%;">
+            <div class="leaderboard-rank">
+              ${this.getRankIcon(entry.rank)}
+              <span class="rank-number">#${entry.rank}</span>
             </div>
-            <div class="user-info">
-              <div class="user-name">
-                ${entry.displayName}
-                ${isCurrentUser ? '<span class="you-badge">You</span>' : ''}
+
+            <div class="leaderboard-user">
+              <div class="user-avatar" style="background-color: ${entry.primaryColor || '#8AB4F8'}; color: ${Colors.getContrastColor(entry.primaryColor || '#8AB4F8')};">
+                ${entry.displayName.charAt(0).toUpperCase()}
               </div>
-              <div class="user-record">${entry.wins}-${entry.losses}${entry.ties > 0 ? `-${entry.ties}` : ''}</div>
+              <div class="user-info">
+                <div class="user-name">
+                  ${entry.displayName}
+                  ${isCurrentUser ? '<span class="you-badge">You</span>' : ''}
+                </div>
+                <div class="user-record">${entry.wins}-${entry.losses}${entry.ties > 0 ? `-${entry.ties}` : ''}</div>
+              </div>
+            </div>
+
+            <div class="leaderboard-points">
+              <div class="points-value">${entry.points}</div>
+              <div class="points-label">points</div>
             </div>
           </div>
 
-          <div class="leaderboard-points">
-            <div class="points-value">${entry.points}</div>
-            <div class="points-label">points</div>
-          </div>
-
+          <!-- Bottom row: Actions -->
           <div class="leaderboard-actions">
             <button class="btn btn-text compare-user-btn"
                     data-user-id="${entry.userId}"
@@ -178,7 +183,7 @@ const HomePage = {
     }).join('');
 
     return `
-      <div class="leaderboard-container card">
+      <div class="leaderboard-container">
         <div class="leaderboard-header">
           <h2>Week ${this.state.currentWeek} Standings</h2>
         </div>
@@ -187,7 +192,7 @@ const HomePage = {
         </div>
         <div class="leaderboard-footer">
           <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
-             class="btn btn-secondary btn-full-width">
+             class="btn btn-secondary">
             See Full Week ${this.state.currentWeek} Stats
           </a>
         </div>
