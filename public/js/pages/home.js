@@ -136,16 +136,12 @@ const HomePage = {
              data-user-id="${entry.userId}">
 
           <!-- Top row: Rank, User, Points -->
-          <div style="display: flex; align-items: center; gap: var(--spacing-md); width: 100%;">
+          <div style="display: flex; align-items: center; gap: var(--spacing-sm); width: 100%;">
             <div class="leaderboard-rank">
-              ${this.getRankIcon(entry.rank)}
               <span class="rank-number">#${entry.rank}</span>
             </div>
 
             <div class="leaderboard-user">
-              <div class="user-avatar" style="background-color: ${entry.primaryColor || '#8AB4F8'}; color: ${Colors.getContrastColor(entry.primaryColor || '#8AB4F8')};">
-                ${entry.displayName.charAt(0).toUpperCase()}
-              </div>
               <div class="user-info">
                 <div class="user-name">
                   ${entry.displayName}

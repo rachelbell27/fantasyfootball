@@ -683,10 +683,10 @@
 .leaderboard-rank {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-secondary);
+  min-width: 32px;
 }
 
 .rank-icon {
@@ -702,8 +702,9 @@
 .leaderboard-user {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   flex: 1;
+  min-width: 0;
 }
 
 .leaderboard-avatar {
@@ -715,6 +716,18 @@
   justify-content: center;
   font-weight: 500;
   font-size: 0.875rem;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .leaderboard-name {
