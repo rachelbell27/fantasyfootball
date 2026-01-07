@@ -49,7 +49,7 @@ The system now supports all playoff rounds:
 
 ## Manual Sync API
 
-### Sync Specific Week
+### 1. Sync Specific Week (Original)
 ```bash
 POST /api/admin/games/sync
 Authorization: Bearer <admin-token>
@@ -59,6 +59,36 @@ Content-Type: application/json
   "week": 1,
   "year": 2025,
   "weekType": "wildcard"
+}
+```
+
+### 2. Run Weekly Sync On-Demand
+Trigger the full weekly sync manually (syncs current + next 2 weeks):
+```bash
+POST /api/admin/sync/weekly
+Authorization: Bearer <admin-token>
+```
+
+Response:
+```json
+{
+  "message": "Weekly sync completed successfully",
+  "triggeredBy": "manual"
+}
+```
+
+### 3. Run Live Game Sync On-Demand
+Trigger the live game sync manually (updates active games):
+```bash
+POST /api/admin/sync/live
+Authorization: Bearer <admin-token>
+```
+
+Response:
+```json
+{
+  "message": "Live game sync completed successfully",
+  "triggeredBy": "manual"
 }
 ```
 

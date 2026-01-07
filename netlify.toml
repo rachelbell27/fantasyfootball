@@ -115,6 +115,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/sync/weekly"
+  to = "/.netlify/functions/scheduled-weekly-sync"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/sync/live"
+  to = "/.netlify/functions/scheduled-game-sync"
+  status = 200
+
+[[redirects]]
   from = "/api/setup/database"
   to = "/.netlify/functions/setup-database"
   status = 200

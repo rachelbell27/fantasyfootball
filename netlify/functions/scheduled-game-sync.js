@@ -137,6 +137,62 @@ const syncLiveGames = async () => {
   }
 };
 
+// Export handler that works both as scheduled and on-demand
+const handler = async (event, context) => {
+  // Allow admin users to trigger manually via POST
+  if (event.httpMethod === 'POST') {
+    const { getUserIdFromToken } = require('./auth-helper');
+    const userId = getUserIdFromToken(event);
+
+    if (!userId) {
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Unauthorized' })
+      };
+    }
+
+    // Check if user is admin
+    const { createClient } = require('./db');
+    const db = await createClient();
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE id = $1',
+      [userId]
+    );
+    await db.end();
+
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: 'Forbidden: Admin access required' })
+      };
+    }
+
+    // Run the sync
+    try {
+      await syncLiveGames();
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Live game sync completed successfully',
+          triggeredBy: 'manual'
+        })
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Sync failed',
+          message: error.message
+        })
+      };
+    }
+  }
+
+  // For scheduled runs, just execute the sync
+  await syncLiveGames();
+};
+
 // Schedule to run every 5 minutes during game days
 // Runs Thursday through Monday (when NFL games typically occur)
-exports.handler = schedule('*/5 * * * *', syncLiveGames);
+exports.handler = schedule('*/5 * * * *', handler);
