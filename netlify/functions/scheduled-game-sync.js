@@ -139,36 +139,37 @@ const syncLiveGames = async () => {
 
 // Export handler that works both as scheduled and on-demand
 const handler = async (event, context) => {
-  // Allow admin users to trigger manually via POST
-  if (event.httpMethod === 'POST') {
-    const { getUserIdFromToken } = require('./auth-helper');
-    const userId = getUserIdFromToken(event);
+  try {
+    // Allow admin users to trigger manually via POST
+    if (event.httpMethod === 'POST') {
+      const { getUserIdFromToken } = require('./auth-helper');
+      const userId = getUserIdFromToken(event);
 
-    if (!userId) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' })
-      };
-    }
+      if (!userId) {
+        return {
+          statusCode: 401,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Unauthorized' })
+        };
+      }
 
-    // Check if user is admin
-    const { createClient } = require('./db');
-    const db = await createClient();
-    const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE id = $1',
-      [userId]
-    );
-    await db.end();
+      // Check if user is admin
+      const db = await createClient();
+      const adminCheck = await db.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      await db.end();
 
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Forbidden: Admin access required' })
-      };
-    }
+      if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+        return {
+          statusCode: 403,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Forbidden: Admin access required' })
+        };
+      }
 
-    // Run the sync
-    try {
+      // Run the sync
       await syncLiveGames();
       return {
         statusCode: 200,
@@ -178,19 +179,9 @@ const handler = async (event, context) => {
           triggeredBy: 'manual'
         })
       };
-    } catch (error) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error: 'Sync failed',
-          message: error.message
-        })
-      };
     }
-  }
 
-  // For scheduled runs, just execute the sync
-  try {
+    // For scheduled runs, just execute the sync
     await syncLiveGames();
     return {
       statusCode: 200,
@@ -201,13 +192,14 @@ const handler = async (event, context) => {
       })
     };
   } catch (error) {
-    console.error('Scheduled live sync error:', error);
+    console.error('Handler error:', error);
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        error: 'Scheduled live sync failed',
-        message: error.message
+        error: 'Sync failed',
+        message: error.message,
+        stack: error.stack
       })
     };
   }
