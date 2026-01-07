@@ -314,7 +314,27 @@ const handler = async (event, context) => {
   }
 
   // For scheduled runs, just execute the sync
-  await syncWeeklySchedule();
+  try {
+    await syncWeeklySchedule();
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Scheduled weekly sync completed',
+        triggeredBy: 'scheduled'
+      })
+    };
+  } catch (error) {
+    console.error('Scheduled sync error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: 'Scheduled sync failed',
+        message: error.message
+      })
+    };
+  }
 };
 
 // Schedule to run daily at 3 AM ET (8 AM UTC)

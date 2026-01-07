@@ -190,7 +190,27 @@ const handler = async (event, context) => {
   }
 
   // For scheduled runs, just execute the sync
-  await syncLiveGames();
+  try {
+    await syncLiveGames();
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Scheduled live sync completed',
+        triggeredBy: 'scheduled'
+      })
+    };
+  } catch (error) {
+    console.error('Scheduled live sync error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: 'Scheduled live sync failed',
+        message: error.message
+      })
+    };
+  }
 };
 
 // Schedule to run every 5 minutes during game days
