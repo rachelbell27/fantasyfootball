@@ -5,19 +5,9 @@
 [dev]
   functions = "netlify/functions"
 
-[functions]
-  # Scheduled functions for automatic game syncing
-  # Note: Scheduled functions require Netlify Pro plan or higher
-
-  # Real-time game updates every 5 minutes
-  # Runs continuously but only updates games within 6-hour window
-  [[functions.scheduled-game-sync]]
-    schedule = "*/5 * * * *"
-
-  # Daily schedule sync at 3 AM ET (8 AM UTC)
-  # Fetches upcoming games and updates schedules
-  [[functions.scheduled-weekly-sync]]
-    schedule = "0 8 * * *"
+# Scheduled functions are configured in the function files themselves
+# using the @netlify/functions schedule() export
+# Note: Scheduled functions require Netlify Pro plan or higher
 
 [[redirects]]
   from = "/api/auth/login"
