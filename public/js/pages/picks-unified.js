@@ -175,6 +175,13 @@ const PicksUnifiedPage = {
    * Render header with week selector inline
    */
   renderHeader() {
+    console.log('[PicksUnified] renderHeader - availableWeeks:', this.state.availableWeeks);
+    console.log('[PicksUnified] renderHeader - selected:', {
+      week: this.state.selectedWeek,
+      year: this.state.selectedYear,
+      weekType: this.state.selectedWeekType
+    });
+
     // For header title - show week number only for regular season
     const headerTitle = this.state.selectedWeekType === 'regular'
       ? `Week ${this.state.selectedWeek}`
@@ -209,6 +216,8 @@ const PicksUnifiedPage = {
                   } else {
                     displayLabel = `${this.getWeekDisplayName(week.weekType)} (${week.year})`;
                   }
+
+                  console.log('[PicksUnified] Dropdown option:', { week, index, displayLabel, isSelected });
 
                   return `
                     <option value="${index}"
