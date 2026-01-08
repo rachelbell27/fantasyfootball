@@ -116,12 +116,12 @@
 
 [[redirects]]
   from = "/api/admin/sync/weekly"
-  to = "/.netlify/functions/scheduled-weekly-sync"
+  to = "/.netlify/functions/admin-sync-weekly"
   status = 200
 
 [[redirects]]
   from = "/api/admin/sync/live"
-  to = "/.netlify/functions/scheduled-game-sync"
+  to = "/.netlify/functions/admin-sync-live"
   status = 200
 
 [[redirects]]
