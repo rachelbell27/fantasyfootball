@@ -16,22 +16,21 @@ exports.handler = async (event, context) => {
     const db = await createClient();
 
     const result = await db.query(
-      `SELECT DISTINCT season_year, week_number, week_type,
+      `SELECT season_year, week_number, week_type,
               MIN(game_time) as first_game_time,
               MAX(game_time) as last_game_time,
-              COUNT(*) as game_count
+              COUNT(*) as game_count,
+              CASE
+                WHEN week_type = 'regular' THEN 0
+                WHEN week_type = 'wildcard' THEN 1
+                WHEN week_type = 'divisional' THEN 2
+                WHEN week_type = 'conference' THEN 3
+                WHEN week_type = 'superbowl' THEN 4
+                ELSE 5
+              END as type_order
        FROM games
        GROUP BY season_year, week_number, week_type
-       ORDER BY season_year DESC,
-                CASE
-                  WHEN week_type = 'regular' THEN 0
-                  WHEN week_type = 'wildcard' THEN 1
-                  WHEN week_type = 'divisional' THEN 2
-                  WHEN week_type = 'conference' THEN 3
-                  WHEN week_type = 'superbowl' THEN 4
-                  ELSE 5
-                END DESC,
-                week_number DESC`
+       ORDER BY season_year DESC, type_order DESC, week_number DESC`
     );
 
     return {
