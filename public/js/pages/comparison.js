@@ -37,7 +37,7 @@ const ComparisonPage = {
     }
 
     // If no week specified, get current week
-    if (!this.state.week) {
+    if (!this.state.week || !this.state.weekType) {
       try {
         const currentWeek = await API.games.getCurrentWeek();
         this.state.week = currentWeek.data.weekNumber;
@@ -47,6 +47,7 @@ const ComparisonPage = {
         console.error('Error getting current week:', error);
         UI.showToast('Error loading current week', 'error');
         this.state.week = 1;
+        this.state.year = new Date().getFullYear();
         this.state.weekType = 'regular';
       }
     }
@@ -87,6 +88,9 @@ const ComparisonPage = {
       // Render week selector and comparison view
       container.innerHTML = `
         <div class="comparison-page">
+          <div class="comparison-header">
+            <h1>${this.getWeekTitle()}</h1>
+          </div>
           <div class="comparison-controls">
             ${this.renderWeekSelector()}
           </div>
@@ -131,6 +135,17 @@ const ComparisonPage = {
       'superbowl': 'Super Bowl'
     };
     return weekTypeNames[weekType] || weekType;
+  },
+
+  /**
+   * Get title for current week
+   */
+  getWeekTitle() {
+    if (this.state.weekType === 'regular') {
+      return `Week ${this.state.week} Comparison`;
+    } else {
+      return `${this.getWeekDisplayName(this.state.weekType)} Comparison`;
+    }
   },
 
   /**
