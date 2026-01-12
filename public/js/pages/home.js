@@ -86,12 +86,33 @@ const HomePage = {
   },
 
   /**
+   * Get display name for week type
+   */
+  getWeekDisplayName(weekType) {
+    const weekTypeNames = {
+      'regular': 'Regular Season',
+      'wildcard': 'Wild Card',
+      'divisional': 'Divisional',
+      'conference': 'Conference Championship',
+      'superbowl': 'Super Bowl'
+    };
+    return weekTypeNames[weekType] || weekType;
+  },
+
+  /**
    * Render header section
    */
   renderHeader() {
+    let weekTitle;
+    if (this.state.currentWeekType === 'regular') {
+      weekTitle = `Week ${this.state.currentWeek}`;
+    } else {
+      weekTitle = this.getWeekDisplayName(this.state.currentWeekType);
+    }
+
     return `
       <div class="home-header">
-        <h1>Week ${this.state.currentWeek} Leaderboard</h1>
+        <h1>${weekTitle} Leaderboard</h1>
         <p class="home-subtitle">${this.state.currentYear} Season</p>
       </div>
     `;
@@ -182,18 +203,25 @@ const HomePage = {
       `;
     }).join('');
 
+    let weekTitle;
+    if (this.state.currentWeekType === 'regular') {
+      weekTitle = `Week ${this.state.currentWeek}`;
+    } else {
+      weekTitle = this.getWeekDisplayName(this.state.currentWeekType);
+    }
+
     return `
       <div class="leaderboard-container">
         <div class="leaderboard-header">
-          <h2>Week ${this.state.currentWeek} Standings</h2>
+          <h2>${weekTitle} Standings</h2>
         </div>
         <div class="leaderboard">
           ${rows}
         </div>
         <div class="leaderboard-footer">
-          <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}"
+          <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&weekType=${this.state.currentWeekType}&leagueId=${this.state.leagueId}"
              class="btn btn-secondary">
-            See Full Week ${this.state.currentWeek} Stats
+            See Full ${weekTitle} Stats
           </a>
         </div>
       </div>
@@ -276,7 +304,7 @@ const HomePage = {
         const userName = btn.dataset.userName;
 
         // Navigate to comparison page
-        window.location.hash = `#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&leagueId=${this.state.leagueId}`;
+        window.location.hash = `#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&weekType=${this.state.currentWeekType}&leagueId=${this.state.leagueId}`;
       });
     });
 
@@ -337,9 +365,17 @@ const HomePage = {
       const incorrectPicks = week.incorrect_picks || 0;
       const percentage = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100) : 0;
 
+      // Determine week display name
+      let weekDisplay;
+      if (week.week_type === 'regular') {
+        weekDisplay = `Week ${week.week_number}`;
+      } else {
+        weekDisplay = this.getWeekDisplayName(week.week_type);
+      }
+
       return `
         <div class="week-stat-row">
-          <div class="week-number">Week ${week.week_number}</div>
+          <div class="week-number">${weekDisplay}</div>
           <div class="week-record">${correctPicks}-${incorrectPicks}</div>
           <div class="week-percentage">${percentage}%</div>
         </div>
