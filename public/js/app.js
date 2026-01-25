@@ -59,8 +59,6 @@ const App = {
       this.showPage('profile');
     } else if (hash === 'compare-picks' || path === '/compare-picks') {
       this.showPage('compare-picks');
-    } else if (hash.startsWith('stats') || path === '/stats' || hash.startsWith('comparison') || path === '/comparison') {
-      this.showPage('stats');
     } else if (hash === 'admin' || path === '/admin') {
       if (Auth.isAdmin()) {
         this.showPage('admin');
@@ -95,10 +93,6 @@ const App = {
           break;
         case 'compare-picks':
           await ComparePicksPage.render(mainContent);
-          break;
-        case 'stats':
-          await ComparisonPage.init();
-          await ComparisonPage.render(mainContent);
           break;
         case 'admin':
           await AdminPage.render(mainContent);

@@ -37,7 +37,6 @@ const Navbar = {
             <a href="#" class="navbar-link" data-page="home">Home</a>
             <a href="#picks" class="navbar-link" data-page="picks">Picks</a>
             <a href="#compare-picks" class="navbar-link" data-page="compare-picks">Compare</a>
-            <a href="#stats" class="navbar-link" data-page="stats">Stats</a>
             ${isAdmin ? '<a href="#admin" class="navbar-link" data-page="admin">Admin</a>' : ''}
           </div>
 
@@ -78,7 +77,6 @@ const Navbar = {
             <a href="#" class="mobile-menu-link" data-page="home">Home</a>
             <a href="#picks" class="mobile-menu-link" data-page="picks">Picks</a>
             <a href="#compare-picks" class="mobile-menu-link" data-page="compare-picks">Compare</a>
-            <a href="#stats" class="mobile-menu-link" data-page="stats">Stats</a>
             <a href="#profile" class="mobile-menu-link" data-page="profile">Profile</a>
             ${isAdmin ? '<a href="#admin" class="mobile-menu-link" data-page="admin">Admin</a>' : ''}
           </div>
