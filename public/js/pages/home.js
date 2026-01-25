@@ -190,15 +190,7 @@ const HomePage = {
                     title="Compare picks with ${entry.displayName}">
               Compare
             </button>
-            <button class="btn btn-icon btn-text expand-user-btn"
-                    data-user-id="${entry.userId}"
-                    title="View ${entry.displayName}'s weekly performance">
-              <span class="expand-icon">▼</span>
-            </button>
           </div>
-        </div>
-        <div class="leaderboard-row-details" id="details-${entry.userId}" style="display: none;">
-          <div class="loading">Loading weekly breakdown...</div>
         </div>
       `;
     }).join('');
@@ -219,9 +211,9 @@ const HomePage = {
           ${rows}
         </div>
         <div class="leaderboard-footer">
-          <a href="#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&weekType=${this.state.currentWeekType}&leagueId=${this.state.leagueId}"
+          <a href="#compare-picks"
              class="btn btn-secondary">
-            See Full ${weekTitle} Stats
+            Compare All Picks
           </a>
         </div>
       </div>
@@ -248,63 +240,12 @@ const HomePage = {
    * Attach event listeners
    */
   attachEventListeners(container) {
-    // Expand user details buttons
-    const expandButtons = container.querySelectorAll('.expand-user-btn');
-    expandButtons.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const userId = btn.dataset.userId;
-        const detailsDiv = document.getElementById(`details-${userId}`);
-        const expandIcon = btn.querySelector('.expand-icon');
-        const row = btn.closest('.leaderboard-row');
-
-        if (detailsDiv.style.display === 'none' || !detailsDiv.style.display) {
-          // Expand
-          try {
-            // Check if we already loaded the data
-            if (!detailsDiv.dataset.loaded) {
-              detailsDiv.innerHTML = '<div class="loading">Loading weekly breakdown...</div>';
-              detailsDiv.style.display = 'block';
-
-              // Fetch user's weekly stats
-              const response = await API.stats.getUser(userId, this.state.leagueId);
-
-              // Render weekly breakdown
-              detailsDiv.innerHTML = this.renderWeeklyBreakdown(response.data);
-              detailsDiv.dataset.loaded = 'true';
-            } else {
-              detailsDiv.style.display = 'block';
-            }
-
-            expandIcon.textContent = '▲';
-            row.classList.add('expanded');
-          } catch (error) {
-            console.error('Error loading weekly breakdown:', error);
-            detailsDiv.innerHTML = `
-              <div class="error-message">
-                Failed to load weekly breakdown. Please try again.
-              </div>
-            `;
-          }
-        } else {
-          // Collapse
-          detailsDiv.style.display = 'none';
-          expandIcon.textContent = '▼';
-          row.classList.remove('expanded');
-        }
-      });
-    });
-
     // Compare user buttons
     const compareButtons = container.querySelectorAll('.compare-user-btn');
     compareButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const userId = btn.dataset.userId;
-        const userName = btn.dataset.userName;
-
-        // Navigate to comparison page
-        window.location.hash = `#stats?week=${this.state.currentWeek}&year=${this.state.currentYear}&weekType=${this.state.currentWeekType}&leagueId=${this.state.leagueId}`;
+      btn.addEventListener('click', () => {
+        // Navigate to compare picks page
+        window.location.hash = `compare-picks`;
       });
     });
 
@@ -347,51 +288,6 @@ const HomePage = {
         await this.render(container);
       }
     });
-  },
-
-  /**
-   * Render weekly breakdown for a user
-   */
-  renderWeeklyBreakdown(statsData) {
-    const weeklyData = statsData.weekly || [];
-
-    if (weeklyData.length === 0) {
-      return '<div class="no-data">No weekly data available</div>';
-    }
-
-    const weekRows = weeklyData.map(week => {
-      const correctPicks = week.correct_picks || 0;
-      const totalPicks = week.total_picks || 0;
-      const incorrectPicks = week.incorrect_picks || 0;
-      const percentage = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100) : 0;
-
-      // Determine week display name
-      let weekDisplay;
-      if (week.week_type === 'regular') {
-        weekDisplay = `Week ${week.week_number}`;
-      } else {
-        weekDisplay = this.getWeekDisplayName(week.week_type);
-      }
-
-      return `
-        <div class="week-stat-row">
-          <div class="week-number">${weekDisplay}</div>
-          <div class="week-record">${correctPicks}-${incorrectPicks}</div>
-          <div class="week-percentage">${percentage}%</div>
-        </div>
-      `;
-    }).join('');
-
-    return `
-      <div class="weekly-breakdown">
-        <div class="breakdown-header">
-          <div class="week-number">Week</div>
-          <div class="week-record">Record</div>
-          <div class="week-percentage">Accuracy</div>
-        </div>
-        ${weekRows}
-      </div>
-    `;
   },
 
   /**

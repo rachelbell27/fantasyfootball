@@ -162,17 +162,6 @@ const API = {
     },
   },
 
-  // Stats
-  stats: {
-    async getUser(userId, leagueId) {
-      return API.request(`/stats/user/${userId}?leagueId=${leagueId}`);
-    },
-
-    async getLeague(leagueId) {
-      return API.request(`/stats/league/${leagueId}`);
-    },
-  },
-
   // Admin
   admin: {
     users: {
