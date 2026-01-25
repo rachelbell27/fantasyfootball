@@ -128,16 +128,27 @@ exports.handler = async (event, context) => {
       );
 
       if (existingGame.rows.length > 0) {
-        // Update existing game
+        // Update existing game (including team info for playoff matchups that were TBD)
         await db.query(
           `UPDATE games SET
-            home_score = $1,
-            away_score = $2,
-            game_status = $3,
-            winner = $4,
+            home_team = $1,
+            home_team_abbr = $2,
+            home_team_logo = $3,
+            home_score = $4,
+            away_team = $5,
+            away_team_abbr = $6,
+            away_team_logo = $7,
+            away_score = $8,
+            game_time = $9,
+            game_status = $10,
+            winner = $11,
             updated_at = NOW()
-          WHERE espn_game_id = $5`,
-          [gameData.homeScore, gameData.awayScore, gameData.gameStatus, gameData.winner, gameData.espnGameId]
+          WHERE espn_game_id = $12`,
+          [
+            gameData.homeTeam, gameData.homeTeamAbbr, gameData.homeTeamLogo, gameData.homeScore,
+            gameData.awayTeam, gameData.awayTeamAbbr, gameData.awayTeamLogo, gameData.awayScore,
+            gameData.gameTime, gameData.gameStatus, gameData.winner, gameData.espnGameId
+          ]
         );
         gamesUpdated++;
       } else {
