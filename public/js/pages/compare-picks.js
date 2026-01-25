@@ -8,10 +8,29 @@ const ComparePicksPage = {
   state: {
     currentWeek: null,
     currentYear: null,
+    currentWeekType: null,
     leagueId: 1,
     games: [],
     users: [],
-    allPicks: []
+    allPicks: [],
+    availableWeeks: []
+  },
+
+  /**
+   * Get display name for week type
+   */
+  getWeekDisplayName(weekType, weekNumber) {
+    if (weekType === 'regular') {
+      return `Week ${weekNumber}`;
+    }
+
+    const weekTypeNames = {
+      'wildcard': 'Wild Card',
+      'divisional': 'Divisional Round',
+      'conference': 'Conference Championship',
+      'superbowl': 'Super Bowl'
+    };
+    return weekTypeNames[weekType] || weekType;
   },
 
   /**
@@ -24,15 +43,26 @@ const ComparePicksPage = {
     }
 
     try {
+      // Fetch available weeks if not already loaded
+      if (this.state.availableWeeks.length === 0) {
+        const weeksResponse = await API.games.getWeeks();
+        this.state.availableWeeks = weeksResponse.data || [];
+      }
+
       // Only fetch current week if not already set (initial load)
-      if (!this.state.currentWeek) {
+      if (!this.state.currentWeek || !this.state.currentWeekType) {
         const weekResponse = await API.games.getCurrentWeek();
         this.state.currentWeek = weekResponse.data.weekNumber;
         this.state.currentYear = weekResponse.data.year;
+        this.state.currentWeekType = weekResponse.data.weekType;
       }
 
       // Fetch games for the selected week
-      const gamesResponse = await API.games.getGames(this.state.currentWeek, this.state.currentYear);
+      const gamesResponse = await API.games.getGames(
+        this.state.currentWeek,
+        this.state.currentYear,
+        this.state.currentWeekType
+      );
       this.state.games = gamesResponse.data;
 
       // Fetch all users in league
@@ -40,7 +70,12 @@ const ComparePicksPage = {
       this.state.users = usersResponse.data;
 
       // Fetch all picks for this week/league from all users
-      const picksResponse = await API.picks.getAll(this.state.currentWeek, this.state.currentYear, this.state.leagueId);
+      const picksResponse = await API.picks.getAll(
+        this.state.currentWeek,
+        this.state.currentYear,
+        this.state.leagueId,
+        this.state.currentWeekType
+      );
       this.state.allPicks = picksResponse.data;
 
       container.innerHTML = `
@@ -73,10 +108,12 @@ const ComparePicksPage = {
    * Render header
    */
   renderHeader() {
+    const weekTitle = this.getWeekDisplayName(this.state.currentWeekType, this.state.currentWeek);
+
     return `
       <div class="compare-picks-header">
         <h1>Compare All Picks</h1>
-        <p class="compare-picks-subtitle">Week ${this.state.currentWeek} - ${this.state.currentYear} Season</p>
+        <p class="compare-picks-subtitle">${weekTitle} - ${this.state.currentYear} Season</p>
       </div>
     `;
   },
@@ -85,16 +122,40 @@ const ComparePicksPage = {
    * Render week selector
    */
   renderWeekSelector() {
-    // For now, just show current week - we can add dropdown later
+    if (this.state.availableWeeks.length === 0) {
+      return '<div class="week-selector-compact card">Loading weeks...</div>';
+    }
+
+    // Create dropdown options grouped by season type
+    const regularWeeks = this.state.availableWeeks.filter(w => w.weekType === 'regular');
+    const playoffWeeks = this.state.availableWeeks.filter(w => w.weekType !== 'regular');
+
+    const regularOptions = regularWeeks.map(week => {
+      const isSelected = week.weekNumber === this.state.currentWeek &&
+                        week.weekType === this.state.currentWeekType &&
+                        week.seasonYear === this.state.currentYear;
+      return `<option value="${week.seasonYear}-${week.weekNumber}-${week.weekType}" ${isSelected ? 'selected' : ''}>
+        Week ${week.weekNumber} (${week.seasonYear})
+      </option>`;
+    }).join('');
+
+    const playoffOptions = playoffWeeks.map(week => {
+      const isSelected = week.weekNumber === this.state.currentWeek &&
+                        week.weekType === this.state.currentWeekType &&
+                        week.seasonYear === this.state.currentYear;
+      const displayName = this.getWeekDisplayName(week.weekType, week.weekNumber);
+      return `<option value="${week.seasonYear}-${week.weekNumber}-${week.weekType}" ${isSelected ? 'selected' : ''}>
+        ${displayName} (${week.seasonYear})
+      </option>`;
+    }).join('');
+
     return `
       <div class="week-selector-compact card">
-        <button class="btn btn-secondary" id="prev-week-btn">
-          ← Previous Week
-        </button>
-        <span class="week-display">Week ${this.state.currentWeek}</span>
-        <button class="btn btn-secondary" id="next-week-btn">
-          Next Week →
-        </button>
+        <label for="week-dropdown" class="week-selector-label">Select Week:</label>
+        <select id="week-dropdown" class="form-input week-dropdown">
+          ${regularOptions ? `<optgroup label="Regular Season">${regularOptions}</optgroup>` : ''}
+          ${playoffOptions ? `<optgroup label="Playoffs">${playoffOptions}</optgroup>` : ''}
+        </select>
       </div>
     `;
   },
@@ -144,7 +205,7 @@ const ComparePicksPage = {
   renderGameStatus(game) {
     const gameTime = new Date(game.gameTime);
     const isFinal = game.gameStatus === 'final' || game.gameStatus === 'status_final';
-    const isPre = game.gameStatus === 'pre' || game.gameStatus === 'scheduled';
+    const isPre = game.gameStatus === 'pre' || game.gameStatus === 'scheduled' || game.gameStatus === 'status_scheduled';
 
     if (isFinal) {
       return `
@@ -219,24 +280,15 @@ const ComparePicksPage = {
    * Attach event listeners
    */
   attachEventListeners(container) {
-    const prevBtn = container.querySelector('#prev-week-btn');
-    const nextBtn = container.querySelector('#next-week-btn');
+    const weekDropdown = container.querySelector('#week-dropdown');
 
-    if (prevBtn) {
-      prevBtn.addEventListener('click', async () => {
-        if (this.state.currentWeek > 1) {
-          this.state.currentWeek--;
-          await this.render(container);
-        }
-      });
-    }
-
-    if (nextBtn) {
-      nextBtn.addEventListener('click', async () => {
-        if (this.state.currentWeek < 18) {
-          this.state.currentWeek++;
-          await this.render(container);
-        }
+    if (weekDropdown) {
+      weekDropdown.addEventListener('change', async (e) => {
+        const [year, weekNumber, weekType] = e.target.value.split('-');
+        this.state.currentYear = parseInt(year);
+        this.state.currentWeek = parseInt(weekNumber);
+        this.state.currentWeekType = weekType;
+        await this.render(container);
       });
     }
   }
