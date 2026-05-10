@@ -5,8 +5,8 @@
   let { data, form } = $props();
 
   let displayName = $state(untrack(() => data.profile?.display_name ?? ''));
-  let primaryColor = $state(untrack(() => data.profile?.primary_color ?? '#ff5db1'));
-  let secondaryColor = $state(untrack(() => data.profile?.secondary_color ?? '#b06bff'));
+  let primaryColor = $state(untrack(() => data.profile?.primary_color || '#ff5db1'));
+  let secondaryColor = $state(untrack(() => data.profile?.secondary_color || '#b06bff'));
   let timezone = $state(untrack(() => data.profile?.timezone ?? 'America/New_York'));
   let saving = $state(false);
 
