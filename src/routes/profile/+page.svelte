@@ -4,15 +4,23 @@
 
   let { data, form } = $props();
 
+  console.log('[PROFILE page] data.profile from server:', data.profile);
+
   let displayName = $state(untrack(() => data.profile?.display_name ?? ''));
   let primaryColor = $state(untrack(() => data.profile?.primary_color || '#ff5db1'));
   let secondaryColor = $state(untrack(() => data.profile?.secondary_color || '#b06bff'));
   let primaryColorText = $state(untrack(() => data.profile?.primary_color || '#ff5db1'));
   let secondaryColorText = $state(untrack(() => data.profile?.secondary_color || '#b06bff'));
 
+  console.log('[PROFILE page] initialized colors — primary:', primaryColor, 'secondary:', secondaryColor);
+
   const hexPattern = /^#[0-9a-fA-F]{6}$/;
   let timezone = $state(untrack(() => data.profile?.timezone ?? 'America/New_York'));
   let saving = $state(false);
+
+  $effect(() => {
+    if (form) console.log('[PROFILE page] form action result:', form);
+  });
 
   const timezones = [
     'America/New_York', 'America/Chicago', 'America/Denver',
