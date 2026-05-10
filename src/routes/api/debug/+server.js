@@ -45,11 +45,23 @@ export async function GET({ cookies, url }) {
     // ?linkUserId=N — link current Supabase session to that user row
     const linkUserId = url.searchParams.get('linkUserId');
     if (linkUserId && result.session) {
-      const linkRes = await db.query(
-        `UPDATE users SET supabase_uid = $1 WHERE id = $2 RETURNING id, username, display_name, is_admin`,
-        [result.session.uid, linkUserId]
-      ).catch(e => { result.errors.push({ step: 'link', message: e.message }); return { rows: [] }; });
-      result.linked = linkRes.rows[0] ?? null;
+      const uid = result.session.uid;
+      const id = parseInt(linkUserId, 10);
+      result.linkAttempt = { uid, id };
+
+      const updateRes = await db.query(
+        `UPDATE users SET supabase_uid = $1::uuid WHERE id = $2::int`,
+        [uid, id]
+      ).catch(e => { result.errors.push({ step: 'link_update', message: e.message }); return null; });
+
+      result.rowsUpdated = updateRes?.rowCount ?? 0;
+
+      // Verify by selecting the row back regardless
+      const verifyRes = await db.query(
+        `SELECT id, username, display_name, is_admin, supabase_uid FROM users WHERE id = $1::int`,
+        [id]
+      ).catch(e => { result.errors.push({ step: 'link_verify', message: e.message }); return { rows: [] }; });
+      result.linked = verifyRes.rows[0] ?? null;
     }
 
     if (result.session && availableCols.has('supabase_uid')) {
