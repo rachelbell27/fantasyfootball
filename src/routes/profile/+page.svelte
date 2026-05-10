@@ -71,7 +71,8 @@
               id="primaryColor"
               name="primaryColor"
               type="color"
-              bind:value={primaryColor}
+              value={primaryColor || '#ff5db1'}
+              oninput={(e) => { primaryColor = e.currentTarget.value; }}
               style="width:40px;height:38px;border:none;cursor:pointer;border-radius:6px;padding:2px;background:var(--bg-2)"
             />
             <input
@@ -90,7 +91,8 @@
               id="secondaryColor"
               name="secondaryColor"
               type="color"
-              bind:value={secondaryColor}
+              value={secondaryColor || '#b06bff'}
+              oninput={(e) => { secondaryColor = e.currentTarget.value; }}
               style="width:40px;height:38px;border:none;cursor:pointer;border-radius:6px;padding:2px;background:var(--bg-2)"
             />
             <input
