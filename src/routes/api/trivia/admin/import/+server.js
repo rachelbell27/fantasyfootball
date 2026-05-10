@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { createClient } from '$lib/server/db.js';
 import { serverSupabase } from '$lib/server/auth.js';
-import { SPORTSIO_APIKEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 async function getAdminUser(cookies, db) {
   const supabase = serverSupabase(cookies);
@@ -65,7 +65,7 @@ async function importFromApi(db, databaseId, season) {
   const resp = await fetch(apiUrl, {
     headers: {
       'x-rapidapi-host': 'v1.american-football.api-sports.io',
-      'x-rapidapi-key': SPORTSIO_APIKEY
+      'x-rapidapi-key': env.SPORTSIO_APIKEY ?? ''
     }
   });
 
