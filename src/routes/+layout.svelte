@@ -26,11 +26,11 @@
     return () => subscription.unsubscribe();
   });
 
-  const navLinks = [
-    { href: '/',        label: 'Home',    match: (p) => p === '/' },
-    { href: '/picks',   label: "Pick'ems", match: (p) => p.startsWith('/picks') },
-    { href: '/games',   label: 'Games',   match: (p) => p.startsWith('/games') },
-    { href: '/compare', label: 'Compare', match: (p) => p.startsWith('/compare') },
+  const mobileLinks = [
+    { href: '/',        label: 'Home',    icon: '🏠', match: (p) => p === '/' },
+    { href: '/picks',   label: "Pick'ems", icon: '🏈', match: (p) => p.startsWith('/picks') },
+    { href: '/games',   label: 'Games',   icon: '📅', match: (p) => p.startsWith('/games') },
+    { href: '/compare', label: 'Compare', icon: '📊', match: (p) => p.startsWith('/compare') },
   ];
 
   async function signOut() {
@@ -67,16 +67,40 @@
       <span>down bad</span>
     </a>
 
-    {#each navLinks as link}
-      <a href={link.href} class="db-nav-link" class:active={link.match($page.url.pathname)}>
-        {link.label}
+    <a href="/" class="db-nav-link" class:active={$page.url.pathname === '/'}>Home</a>
+
+    <div class="db-nav-group">
+      <a href="/picks" class="db-nav-link" class:active={$page.url.pathname.startsWith('/picks')}>
+        Pick'ems ▾
       </a>
-    {/each}
+      <div class="db-dropdown">
+        <a href="/picks" class="db-dropdown-item" class:active={$page.url.pathname === '/picks'}>Picks</a>
+        <a href="/picks/record" class="db-dropdown-item" class:active={$page.url.pathname === '/picks/record'}>Record</a>
+        {#if data.availableYears?.length > 0}
+          <div class="db-dropdown-divider"></div>
+          {#each data.availableYears as year}
+            <a href="/picks/history/{year}" class="db-dropdown-item"
+               class:active={$page.url.pathname === `/picks/history/${year}`}>{year}</a>
+          {/each}
+        {/if}
+      </div>
+    </div>
+
+    <div class="db-nav-group">
+      <a href="/games" class="db-nav-link" class:active={$page.url.pathname.startsWith('/games')}>
+        Games ▾
+      </a>
+      <div class="db-dropdown">
+        <a href="/games" class="db-dropdown-item" class:active={$page.url.pathname === '/games'}>Today's Game</a>
+        <a href="/games?browse=1" class="db-dropdown-item">More Games</a>
+        <a href="/games/history" class="db-dropdown-item" class:active={$page.url.pathname === '/games/history'}>History</a>
+      </div>
+    </div>
+
+    <a href="/compare" class="db-nav-link" class:active={$page.url.pathname.startsWith('/compare')}>Compare</a>
 
     {#if data.profile?.is_admin || data.profile?.is_commissioner}
-      <a href="/admin" class="db-nav-link" class:active={$page.url.pathname.startsWith('/admin')}>
-        Admin
-      </a>
+      <a href="/admin" class="db-nav-link" class:active={$page.url.pathname.startsWith('/admin')}>Admin</a>
     {/if}
 
     <span class="db-nav-spacer"></span>
@@ -97,9 +121,9 @@
 
   <!-- Mobile tab bar -->
   <div class="db-mobile-nav">
-    {#each navLinks as link}
+    {#each mobileLinks as link}
       <a href={link.href} class="db-mobile-tab" class:active={link.match($page.url.pathname)}>
-        <span style="font-size:18px">{link.href === '/' ? '🏠' : link.href === '/picks' ? '🏈' : link.href === '/games' ? '📅' : '📊'}</span>
+        <span style="font-size:18px">{link.icon}</span>
         <span>{link.label}</span>
       </a>
     {/each}

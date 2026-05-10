@@ -13,10 +13,17 @@ export async function load({ cookies }) {
     console.error('Supabase session error:', e);
   }
 
+  let availableYears = [];
   if (session) {
     let db;
     try {
       db = await createClient();
+
+      const yearsRes = await db.query(
+        `SELECT DISTINCT season_year FROM games ORDER BY season_year DESC`
+      );
+      availableYears = yearsRes.rows.map(r => r.season_year);
+
       let result = await db.query(
         `SELECT id, username, display_name, is_admin, is_commissioner,
                 primary_color, secondary_color, timezone
@@ -55,5 +62,5 @@ export async function load({ cookies }) {
     }
   }
 
-  return { session, profile, supabase: supabasePublicConfig };
+  return { session, profile, supabase: supabasePublicConfig, availableYears };
 }

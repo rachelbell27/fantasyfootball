@@ -1,25 +1,39 @@
 import { redirect } from '@sveltejs/kit';
 import { createClient } from '$lib/server/db.js';
 
-export async function load({ parent }) {
+export async function load({ parent, url }) {
   const { session } = await parent();
   if (!session) throw redirect(303, '/auth/login');
+
+  const requestedYear = url.searchParams.get('year') ? parseInt(url.searchParams.get('year')) : null;
 
   const db = await createClient();
   try {
     const now = new Date();
 
-    const weekRes = await db.query(
-      `SELECT week_number, season_year, week_type,
-              CASE week_type
-                WHEN 'regular'    THEN 0 WHEN 'wildcard'   THEN 1
-                WHEN 'divisional' THEN 2 WHEN 'conference' THEN 3
-                WHEN 'superbowl'  THEN 4 ELSE 5
-              END as type_order
-       FROM games WHERE game_time <= $1
-       ORDER BY season_year DESC, type_order DESC, week_number DESC LIMIT 1`,
-      [now]
-    );
+    const weekRes = requestedYear
+      ? await db.query(
+          `SELECT week_number, season_year, week_type,
+                  CASE week_type
+                    WHEN 'regular'    THEN 0 WHEN 'wildcard'   THEN 1
+                    WHEN 'divisional' THEN 2 WHEN 'conference' THEN 3
+                    WHEN 'superbowl'  THEN 4 ELSE 5
+                  END as type_order
+           FROM games WHERE season_year = $1
+           ORDER BY type_order DESC, week_number DESC LIMIT 1`,
+          [requestedYear]
+        )
+      : await db.query(
+          `SELECT week_number, season_year, week_type,
+                  CASE week_type
+                    WHEN 'regular'    THEN 0 WHEN 'wildcard'   THEN 1
+                    WHEN 'divisional' THEN 2 WHEN 'conference' THEN 3
+                    WHEN 'superbowl'  THEN 4 ELSE 5
+                  END as type_order
+           FROM games WHERE game_time <= $1
+           ORDER BY season_year DESC, type_order DESC, week_number DESC LIMIT 1`,
+          [now]
+        );
     const currentWeek = weekRes.rows[0] ?? {
       week_number: 1,
       season_year: now.getFullYear(),
