@@ -3,7 +3,7 @@ import { serverSupabase } from '$lib/server/auth.js';
 import { createClient } from '$lib/server/db.js';
 
 export async function GET({ cookies }) {
-  const result = { session: null, dbConnected: false, userRow: null, errors: [] };
+  const result = { session: null, dbConnected: false, userTableColumns: [], bySupabaseUid: null, byEmail: null, errors: [] };
 
   // 1. Check Supabase session
   try {
@@ -21,39 +21,38 @@ export async function GET({ cookies }) {
     result.errors.push({ step: 'supabase_session', message: e.message });
   }
 
-  // 2. Check DB connection and user row
+  // 2. Check DB and schema
   let db;
   try {
     db = await createClient();
     result.dbConnected = true;
 
-    if (result.session) {
-      // Check by supabase_uid
+    // Get column list first so we know what's safe to query
+    const cols = await db.query(
+      `SELECT column_name, data_type
+       FROM information_schema.columns
+       WHERE table_name = 'users'
+       ORDER BY ordinal_position`
+    );
+    result.userTableColumns = cols.rows.map(r => `${r.column_name} (${r.data_type})`);
+
+    const availableCols = new Set(cols.rows.map(r => r.column_name));
+    const wantedCols = ['id', 'username', 'display_name', 'is_admin', 'is_commissioner',
+                        'primary_color', 'secondary_color', 'timezone', 'theme_preference', 'supabase_uid'];
+    const safeCols = wantedCols.filter(c => availableCols.has(c)).join(', ');
+
+    if (result.session && safeCols) {
       const byUid = await db.query(
-        `SELECT id, username, display_name, is_admin, is_commissioner,
-                primary_color, secondary_color, supabase_uid
-         FROM users WHERE supabase_uid = $1`,
+        `SELECT ${safeCols} FROM users WHERE supabase_uid = $1`,
         [result.session.uid]
-      );
+      ).catch(e => { result.errors.push({ step: 'byUid', message: e.message }); return { rows: [] }; });
       result.bySupabaseUid = byUid.rows[0] ?? null;
 
-      // Check by email
       const byEmail = await db.query(
-        `SELECT id, username, display_name, is_admin, is_commissioner,
-                primary_color, secondary_color, supabase_uid
-         FROM users WHERE LOWER(username) = LOWER($1)`,
+        `SELECT ${safeCols} FROM users WHERE LOWER(username) = LOWER($1)`,
         [result.session.email]
-      );
+      ).catch(e => { result.errors.push({ step: 'byEmail', message: e.message }); return { rows: [] }; });
       result.byEmail = byEmail.rows[0] ?? null;
-
-      // Check what columns exist on users table
-      const cols = await db.query(
-        `SELECT column_name, data_type
-         FROM information_schema.columns
-         WHERE table_name = 'users'
-         ORDER BY ordinal_position`
-      );
-      result.userTableColumns = cols.rows.map(r => `${r.column_name} (${r.data_type})`);
     }
   } catch (e) {
     result.errors.push({ step: 'db', message: e.message });
@@ -61,7 +60,5 @@ export async function GET({ cookies }) {
     await db?.end();
   }
 
-  return json(result, {
-    headers: { 'Cache-Control': 'no-store' }
-  });
+  return json(result, { headers: { 'Cache-Control': 'no-store' } });
 }

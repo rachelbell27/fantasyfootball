@@ -26,9 +26,19 @@ export async function load({ cookies }) {
     try {
       db = await createClient();
 
+      // Ensure all required columns exist (safe no-ops if already present)
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_uid UUID UNIQUE`).catch(() => {});
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_commissioner BOOLEAN DEFAULT false`).catch(() => {});
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS primary_color TEXT`).catch(() => {});
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS secondary_color TEXT`).catch(() => {});
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'`).catch(() => {});
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(10) DEFAULT 'dark'`).catch(() => {});
+      await db.query(`CREATE TABLE IF NOT EXISTS league_members (id SERIAL PRIMARY KEY, league_id INTEGER NOT NULL DEFAULT 1, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, UNIQUE(league_id, user_id))`).catch(() => {});
+      await db.query(`CREATE TABLE IF NOT EXISTS leagues (id SERIAL PRIMARY KEY, sport TEXT NOT NULL DEFAULT 'Football', platform TEXT NOT NULL, commissioner_name TEXT NOT NULL, league_name TEXT NOT NULL, url TEXT NOT NULL, sort_order INTEGER DEFAULT 0, expiration_date DATE, winner TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`).catch(() => {});
+
       const yearsRes = await db.query(
         `SELECT DISTINCT season_year FROM games ORDER BY season_year DESC`
-      );
+      ).catch(() => ({ rows: [] }));
       availableYears = yearsRes.rows.map(r => r.season_year);
 
       const profileCols = `id, username, display_name, is_admin, is_commissioner,
