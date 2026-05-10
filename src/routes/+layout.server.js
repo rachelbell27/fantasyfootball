@@ -2,6 +2,7 @@ import { serverSupabase, supabasePublicConfig } from '$lib/server/auth.js';
 import { createClient } from '$lib/server/db.js';
 
 export async function load({ cookies }) {
+  console.log('>>> LAYOUT LOAD RUNNING <<<');
   let session = null;
   let profile = null;
 
@@ -12,6 +13,8 @@ export async function load({ cookies }) {
   } catch (e) {
     console.error('Supabase session error:', e);
   }
+
+  console.log('>>> LAYOUT session:', session ? `found (${session.user.email})` : 'null');
 
   let availableYears = [];
   if (session) {
