@@ -7,6 +7,10 @@
   let displayName = $state(untrack(() => data.profile?.display_name ?? ''));
   let primaryColor = $state(untrack(() => data.profile?.primary_color || '#ff5db1'));
   let secondaryColor = $state(untrack(() => data.profile?.secondary_color || '#b06bff'));
+  let primaryColorText = $state(untrack(() => data.profile?.primary_color || '#ff5db1'));
+  let secondaryColorText = $state(untrack(() => data.profile?.secondary_color || '#b06bff'));
+
+  const hexPattern = /^#[0-9a-fA-F]{6}$/;
   let timezone = $state(untrack(() => data.profile?.timezone ?? 'America/New_York'));
   let saving = $state(false);
 
@@ -72,13 +76,14 @@
               name="primaryColor"
               type="color"
               value={primaryColor || '#ff5db1'}
-              oninput={(e) => { primaryColor = e.currentTarget.value; }}
+              oninput={(e) => { primaryColor = e.currentTarget.value; primaryColorText = e.currentTarget.value; }}
               style="width:40px;height:38px;border:none;cursor:pointer;border-radius:6px;padding:2px;background:var(--bg-2)"
             />
             <input
               type="text"
               class="db-input"
-              bind:value={primaryColor}
+              value={primaryColorText}
+              oninput={(e) => { primaryColorText = e.currentTarget.value; if (hexPattern.test(e.currentTarget.value)) primaryColor = e.currentTarget.value; }}
               pattern="^#[0-9a-fA-F]{6}$"
               style="font-family:var(--font-mono);flex:1"
             />
@@ -92,13 +97,14 @@
               name="secondaryColor"
               type="color"
               value={secondaryColor || '#b06bff'}
-              oninput={(e) => { secondaryColor = e.currentTarget.value; }}
+              oninput={(e) => { secondaryColor = e.currentTarget.value; secondaryColorText = e.currentTarget.value; }}
               style="width:40px;height:38px;border:none;cursor:pointer;border-radius:6px;padding:2px;background:var(--bg-2)"
             />
             <input
               type="text"
               class="db-input"
-              bind:value={secondaryColor}
+              value={secondaryColorText}
+              oninput={(e) => { secondaryColorText = e.currentTarget.value; if (hexPattern.test(e.currentTarget.value)) secondaryColor = e.currentTarget.value; }}
               pattern="^#[0-9a-fA-F]{6}$"
               style="font-family:var(--font-mono);flex:1"
             />
