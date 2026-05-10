@@ -73,7 +73,6 @@
           <div style="display:flex;align-items:center;gap:8px">
             <input
               id="primaryColor"
-              name="primaryColor"
               type="color"
               value={primaryColor || '#ff5db1'}
               oninput={(e) => { primaryColor = e.currentTarget.value; primaryColorText = e.currentTarget.value; }}
@@ -94,7 +93,6 @@
           <div style="display:flex;align-items:center;gap:8px">
             <input
               id="secondaryColor"
-              name="secondaryColor"
               type="color"
               value={secondaryColor || '#b06bff'}
               oninput={(e) => { secondaryColor = e.currentTarget.value; secondaryColorText = e.currentTarget.value; }}
@@ -111,6 +109,7 @@
           </div>
         </div>
       </div>
+      <input type="hidden" name="primaryColor" value={primaryColor} />
       <input type="hidden" name="secondaryColor" value={secondaryColor} />
 
       <div style="margin-bottom:20px">
