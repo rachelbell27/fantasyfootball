@@ -2,14 +2,21 @@ import { serverSupabase, supabasePublicConfig } from '$lib/server/auth.js';
 import { createClient } from '$lib/server/db.js';
 
 export async function load({ cookies }) {
-  const supabase = serverSupabase(cookies);
-  const { data: { session } } = await supabase.auth.getSession();
-
+  let session = null;
   let profile = null;
+
+  try {
+    const supabase = serverSupabase(cookies);
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
+  } catch (e) {
+    console.error('Supabase session error:', e);
+  }
+
   if (session) {
-    const db = await createClient();
+    let db;
     try {
-      // Find existing profile
+      db = await createClient();
       let result = await db.query(
         `SELECT id, username, display_name, is_admin, is_commissioner,
                 primary_color, secondary_color, timezone
@@ -18,7 +25,6 @@ export async function load({ cookies }) {
       );
 
       if (result.rows.length === 0) {
-        // First login — create a user record from Supabase Auth data
         const email = session.user.email ?? '';
         const displayName = session.user.user_metadata?.display_name
           ?? email.split('@')[0];
@@ -32,7 +38,6 @@ export async function load({ cookies }) {
           [email, displayName, session.user.id]
         );
 
-        // Add to default league (id = 1)
         if (result.rows.length > 0) {
           await db.query(
             `INSERT INTO league_members (league_id, user_id)
@@ -43,8 +48,10 @@ export async function load({ cookies }) {
       }
 
       profile = result.rows[0] ?? null;
+    } catch (e) {
+      console.error('DB profile error:', e);
     } finally {
-      await db.end();
+      await db?.end();
     }
   }
 
