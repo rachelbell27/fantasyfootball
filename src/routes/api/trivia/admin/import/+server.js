@@ -40,15 +40,21 @@ async function ensureSchema(db) {
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_round SMALLINT`);
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_pick SMALLINT`);
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_team VARCHAR(100)`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS headshot_url TEXT`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS height VARCHAR(20)`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS weight SMALLINT`);
+  await db.query(`ALTER TABLE trivia_teams ADD COLUMN IF NOT EXISTS logo_dark_url TEXT`);
+  await db.query(`ALTER TABLE trivia_teams ADD COLUMN IF NOT EXISTS alternate_color VARCHAR(7)`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS trivia_teams (
-      id           SERIAL PRIMARY KEY,
-      database_id  INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
-      espn_id      VARCHAR(20) NOT NULL,
-      display_name VARCHAR(150) NOT NULL,
-      abbreviation VARCHAR(10), location VARCHAR(100), slug VARCHAR(100),
-      logo_url TEXT, color VARCHAR(7),
-      created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      id               SERIAL PRIMARY KEY,
+      database_id      INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
+      espn_id          VARCHAR(20) NOT NULL,
+      display_name     VARCHAR(150) NOT NULL,
+      abbreviation     VARCHAR(10), location VARCHAR(100), slug VARCHAR(100),
+      logo_url         TEXT, logo_dark_url TEXT,
+      color            VARCHAR(7), alternate_color VARCHAR(7),
+      created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(database_id, espn_id)
     )
   `);
@@ -95,22 +101,30 @@ async function upsertTeams(db, databaseId, espnLeague) {
   const teamLookup = {}; // espn_id (string) → { id: db_pk, displayName }
 
   for (const team of teams) {
+    const defaultLogo = team.logos?.find(l => l.rel?.includes('default')) ?? team.logos?.[0];
+    const darkLogo    = team.logos?.find(l => l.rel?.includes('dark'));
     const res = await db.query(
-      `INSERT INTO trivia_teams (database_id, espn_id, display_name, abbreviation, location, slug, logo_url, color)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO trivia_teams
+         (database_id, espn_id, display_name, abbreviation, location, slug,
+          logo_url, logo_dark_url, color, alternate_color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (database_id, espn_id) DO UPDATE
-         SET display_name = EXCLUDED.display_name,
-             abbreviation = EXCLUDED.abbreviation,
-             location     = EXCLUDED.location,
-             slug         = EXCLUDED.slug,
-             logo_url     = EXCLUDED.logo_url,
-             color        = EXCLUDED.color
+         SET display_name    = EXCLUDED.display_name,
+             abbreviation    = EXCLUDED.abbreviation,
+             location        = EXCLUDED.location,
+             slug            = EXCLUDED.slug,
+             logo_url        = EXCLUDED.logo_url,
+             logo_dark_url   = EXCLUDED.logo_dark_url,
+             color           = EXCLUDED.color,
+             alternate_color = EXCLUDED.alternate_color
        RETURNING id, espn_id, display_name`,
       [
         databaseId, String(team.id), team.displayName, team.abbreviation,
         team.location, team.slug,
-        team.logos?.[0]?.href ?? null,
-        team.color ? `#${team.color}` : null,
+        defaultLogo?.href ?? null,
+        darkLogo?.href    ?? null,
+        team.color          ? `#${team.color}`          : null,
+        team.alternateColor ? `#${team.alternateColor}` : null,
       ]
     );
     const row = res.rows[0];
@@ -165,6 +179,9 @@ async function fetchRostersFromTeams(teamLookup, espnLeague) {
             draftRound:  player.draft?.round ?? null,
             draftPick:   player.draft?.selection ?? null,
             draftTeam:   player.draft?.team?.displayName ?? null,
+            headshotUrl: player.headshot?.href ?? null,
+            height:      player.displayHeight ?? null,
+            weight:      player.weight ? Number(player.weight) : null,
           });
           teamPlayerCount++;
         }
@@ -199,16 +216,20 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
     const res = await db.query(
       `INSERT INTO trivia_players
          (database_id, full_name, aliases, metadata, api_player_id,
-          college, draft_year, draft_round, draft_pick, draft_team)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          college, draft_year, draft_round, draft_pick, draft_team,
+          headshot_url, height, weight)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (api_player_id, database_id) DO UPDATE
-         SET full_name  = EXCLUDED.full_name,
-             aliases    = EXCLUDED.aliases,
-             college    = COALESCE(EXCLUDED.college,    trivia_players.college),
-             draft_year = COALESCE(EXCLUDED.draft_year, trivia_players.draft_year),
-             draft_round= COALESCE(EXCLUDED.draft_round,trivia_players.draft_round),
-             draft_pick = COALESCE(EXCLUDED.draft_pick, trivia_players.draft_pick),
-             draft_team = COALESCE(EXCLUDED.draft_team, trivia_players.draft_team),
+         SET full_name    = EXCLUDED.full_name,
+             aliases      = EXCLUDED.aliases,
+             college      = COALESCE(EXCLUDED.college,      trivia_players.college),
+             draft_year   = COALESCE(EXCLUDED.draft_year,   trivia_players.draft_year),
+             draft_round  = COALESCE(EXCLUDED.draft_round,  trivia_players.draft_round),
+             draft_pick   = COALESCE(EXCLUDED.draft_pick,   trivia_players.draft_pick),
+             draft_team   = COALESCE(EXCLUDED.draft_team,   trivia_players.draft_team),
+             headshot_url = COALESCE(EXCLUDED.headshot_url, trivia_players.headshot_url),
+             height       = COALESCE(EXCLUDED.height,       trivia_players.height),
+             weight       = COALESCE(EXCLUDED.weight,       trivia_players.weight),
              metadata  = jsonb_strip_nulls(
                trivia_players.metadata || jsonb_build_object(
                  'position', EXCLUDED.metadata->>'position',
@@ -232,7 +253,8 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
              )
        RETURNING id, (xmax = 0) AS is_insert`,
       [databaseId, p.fullName, aliases, metadata, Number(p.espnId),
-       p.college ?? null, p.draftYear ?? null, p.draftRound ?? null, p.draftPick ?? null, p.draftTeam ?? null]
+       p.college ?? null, p.draftYear ?? null, p.draftRound ?? null, p.draftPick ?? null, p.draftTeam ?? null,
+       p.headshotUrl ?? null, p.height ?? null, p.weight ?? null]
     );
 
     const row = res.rows[0];

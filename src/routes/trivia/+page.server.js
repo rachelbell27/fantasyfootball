@@ -29,6 +29,11 @@ async function ensureTriviaSchema(db) {
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_round SMALLINT`);
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_pick SMALLINT`);
   await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_team VARCHAR(100)`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS headshot_url TEXT`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS height VARCHAR(20)`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS weight SMALLINT`);
+  await db.query(`ALTER TABLE trivia_teams ADD COLUMN IF NOT EXISTS logo_dark_url TEXT`);
+  await db.query(`ALTER TABLE trivia_teams ADD COLUMN IF NOT EXISTS alternate_color VARCHAR(7)`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS trivia_games (
       id SERIAL PRIMARY KEY,
