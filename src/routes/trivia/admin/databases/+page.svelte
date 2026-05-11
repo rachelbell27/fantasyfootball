@@ -23,6 +23,13 @@
   let csvError = $state('');
   let csvLoading = $state(false);
 
+  // Stats import
+  let statsDbId = $state(null);
+  let statsSeason = $state(new Date().getFullYear());
+  let statsStatus = $state('');
+  let statsLoading = $state(false);
+  let statsProgress = $state({ done: 0, total: 0 });
+
   function slugify(str) {
     return str
       .toLowerCase()
@@ -97,6 +104,47 @@
       importStatus = `Error: ${err.message}`;
     } finally {
       importLoading = false;
+    }
+  }
+
+  async function importStats(db) {
+    statsDbId = db.id;
+    statsStatus = 'Starting stats import…';
+    statsLoading = true;
+    statsProgress = { done: 0, total: 0 };
+
+    let offset = 0;
+    const limit = 40;
+    let totalUpdated = 0;
+
+    try {
+      while (true) {
+        const res = await fetch('/api/trivia/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            databaseId: db.id,
+            importType: 'espn-stats',
+            season: statsSeason,
+            offset,
+            limit
+          })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message ?? `Error ${res.status}`);
+
+        totalUpdated += result.updated;
+        statsProgress = { done: result.nextOffset, total: result.total };
+        statsStatus = `Importing… ${result.nextOffset}/${result.total} players`;
+
+        if (!result.hasMore) break;
+        offset = result.nextOffset;
+      }
+      statsStatus = `Done — stats imported for ${totalUpdated} players.`;
+    } catch (err) {
+      statsStatus = `Error: ${err.message}`;
+    } finally {
+      statsLoading = false;
     }
   }
 
@@ -253,7 +301,7 @@
           {/if}
         </div>
 
-        <!-- ESPN import -->
+        <!-- ESPN roster import -->
         <div class="import-block">
           <p class="import-label db-sub">ESPN import (free, no key needed)</p>
           <p class="import-hint db-sub" style="font-size:11px">
@@ -279,6 +327,40 @@
           </div>
           {#if importStatus && importDbId === db.id}
             <p class="import-status" class:error={importStatus.startsWith('Error')}>{importStatus}</p>
+          {/if}
+        </div>
+
+        <!-- ESPN stats import -->
+        <div class="import-block">
+          <p class="import-label db-sub">ESPN stats import</p>
+          <p class="import-hint db-sub" style="font-size:11px">
+            Fetches season stats (passing, rushing, receiving, etc.) for each rostered player.
+            Run after roster import. Takes ~1–2 min for NFL.
+          </p>
+          <div class="import-row">
+            <input
+              class="db-input season-input"
+              type="number"
+              bind:value={statsSeason}
+              min="2000"
+              max="2099"
+              placeholder="Season year"
+            />
+            <button
+              class="db-btn"
+              onclick={() => importStats(db)}
+              disabled={statsLoading && statsDbId === db.id}
+            >
+              {statsLoading && statsDbId === db.id ? 'Importing…' : 'Import Stats →'}
+            </button>
+          </div>
+          {#if statsStatus && statsDbId === db.id}
+            {#if statsLoading && statsProgress.total > 0}
+              <div class="stats-progress">
+                <div class="stats-bar" style="width: {Math.round(statsProgress.done / statsProgress.total * 100)}%"></div>
+              </div>
+            {/if}
+            <p class="import-status" class:error={statsStatus.startsWith('Error')}>{statsStatus}</p>
           {/if}
         </div>
       </div>
@@ -440,6 +522,21 @@
 
   .import-status.error {
     color: var(--bad);
+  }
+
+  .stats-progress {
+    margin-top: 8px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .stats-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
   }
 
   .empty-state {

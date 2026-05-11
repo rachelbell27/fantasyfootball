@@ -66,9 +66,11 @@ async function ensureTriviaSchema(db) {
       id SERIAL PRIMARY KEY, team_id INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
       player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
       season INTEGER NOT NULL, position VARCHAR(10), jersey VARCHAR(5),
+      stats JSONB DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(team_id, player_id, season)
     )
   `);
+  await db.query(`ALTER TABLE trivia_rosters ADD COLUMN IF NOT EXISTS stats JSONB DEFAULT '{}'`);
   await db.query(`
     INSERT INTO trivia_databases (name, slug, description) VALUES
       ('NFL', 'nfl', 'National Football League'),

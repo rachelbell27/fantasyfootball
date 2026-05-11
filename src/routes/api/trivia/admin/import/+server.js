@@ -49,10 +49,12 @@ async function ensureSchema(db) {
       team_id   INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
       player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
       season    INTEGER NOT NULL, position VARCHAR(10), jersey VARCHAR(5),
+      stats     JSONB DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(team_id, player_id, season)
     )
   `);
+  await db.query(`ALTER TABLE trivia_rosters ADD COLUMN IF NOT EXISTS stats JSONB DEFAULT '{}'`);
   // Seed default databases
   await db.query(`
     INSERT INTO trivia_databases (name, slug, description) VALUES
@@ -230,8 +232,8 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
 
     // Use unnest for bulk insert
     await db.query(
-      `INSERT INTO trivia_rosters (team_id, player_id, season, position, jersey)
-       SELECT unnest($1::int[]), unnest($2::int[]), $3, unnest($4::text[]), unnest($5::text[])
+      `INSERT INTO trivia_rosters (team_id, player_id, season, position, jersey, stats)
+       SELECT unnest($1::int[]), unnest($2::int[]), $3, unnest($4::text[]), unnest($5::text[]), '{}'::jsonb
        ON CONFLICT (team_id, player_id, season) DO UPDATE
          SET position = EXCLUDED.position,
              jersey   = EXCLUDED.jersey`,
@@ -241,6 +243,76 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
   }
 
   return { inserted, updated, rosterRows };
+}
+
+// ── Stats import ───────────────────────────────────────────────────────────
+
+const CORE = 'https://sports.core.api.espn.com/v2/sports/football';
+
+async function fetchPlayerStats(espnLeague, espnId, season) {
+  const url = `${CORE}/leagues/${espnLeague}/seasons/${season}/athletes/${espnId}/statistics`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const stats = {};
+    for (const cat of data.splits?.categories ?? []) {
+      const flat = {};
+      for (const s of cat.stats ?? []) {
+        if (s.value != null && s.value !== 0) flat[s.name] = s.value;
+      }
+      if (Object.keys(flat).length > 0) stats[cat.name] = flat;
+    }
+    return Object.keys(stats).length > 0 ? stats : null;
+  } catch {
+    return null;
+  }
+}
+
+async function importStats(db, databaseId, espnLeague, season, offset, limit) {
+  const countRes = await db.query(
+    `SELECT COUNT(*)::int AS total
+     FROM trivia_rosters r
+     JOIN trivia_players p ON p.id = r.player_id
+     WHERE r.season = $1 AND p.database_id = $2 AND p.api_player_id IS NOT NULL`,
+    [season, databaseId]
+  );
+  const total = countRes.rows[0].total;
+
+  const playersRes = await db.query(
+    `SELECT r.id AS roster_id, p.api_player_id AS espn_id
+     FROM trivia_rosters r
+     JOIN trivia_players p ON p.id = r.player_id
+     WHERE r.season = $1 AND p.database_id = $2 AND p.api_player_id IS NOT NULL
+     ORDER BY r.id
+     LIMIT $3 OFFSET $4`,
+    [season, databaseId, limit, offset]
+  );
+
+  const rows = playersRes.rows;
+  let updated = 0;
+  console.log(`[stats] offset=${offset} limit=${limit} fetching ${rows.length} of ${total}`);
+
+  const BATCH = 20;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(r => fetchPlayerStats(espnLeague, r.espn_id, season))
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const stats = results[j];
+      if (!stats) continue;
+      await db.query(
+        `UPDATE trivia_rosters SET stats = $1 WHERE id = $2`,
+        [JSON.stringify(stats), batch[j].roster_id]
+      );
+      updated++;
+    }
+  }
+
+  const nextOffset = offset + rows.length;
+  console.log(`[stats] updated ${updated}, nextOffset=${nextOffset}, total=${total}`);
+  return { updated, total, hasMore: nextOffset < total, nextOffset };
 }
 
 // ── CSV import (unchanged) ──────────────────────────────────────────────────
@@ -283,10 +355,20 @@ export async function POST({ request, cookies }) {
     await ensureSchema(db).catch(e => { throw error(500, `Schema setup failed: ${e.message}`); });
 
     const body = await request.json();
-    const { databaseId, importType, season, players } = body;
+    const { databaseId, importType, season, players, offset = 0, limit = 40 } = body;
     if (!databaseId) throw error(400, 'databaseId required');
 
-    if (importType === 'espn') {
+    if (importType === 'espn-stats') {
+      if (!season) throw error(400, 'season is required for stats import');
+      const dbRes = await db.query('SELECT slug FROM trivia_databases WHERE id = $1', [databaseId]);
+      const slug = dbRes.rows[0]?.slug;
+      const espnLeague = LEAGUE_MAP[slug];
+      if (!espnLeague) throw error(400, `No ESPN mapping for database slug "${slug}"`);
+
+      const result = await importStats(db, databaseId, espnLeague, season, offset, limit);
+      return json({ success: true, ...result });
+
+    } else if (importType === 'espn') {
       if (!season) throw error(400, 'season is required for ESPN import');
 
       const dbRes = await db.query('SELECT slug FROM trivia_databases WHERE id = $1', [databaseId]);
