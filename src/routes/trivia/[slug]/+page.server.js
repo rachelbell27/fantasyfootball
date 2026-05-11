@@ -42,7 +42,7 @@ export async function load({ parent, params }) {
       }));
 
     } else if (hintType === 'team_logo' || hintType === 'team_name') {
-      // Collect all display_team_ids for a single lookup
+      // Collect explicitly-set team IDs
       const teamIds = rawSlots.map(r => r.hint_data?.display_team_id).filter(Boolean);
       let teamMap = {};
       if (teamIds.length > 0) {
@@ -52,6 +52,23 @@ export async function load({ parent, params }) {
           [teamIds]
         );
         teamMap = Object.fromEntries(teamRes.rows.map(t => [t.id, t]));
+      }
+
+      // For slots with no explicit team (e.g. added via SQL fill), fall back to most recent roster team
+      const needsFallback = rawSlots.filter(r => !r.hint_data?.display_team_id && !r.hint_data?.display_all_teams);
+      let fallbackTeamMap = {};
+      if (needsFallback.length > 0) {
+        const fbRes = await db.query(
+          `SELECT DISTINCT ON (tr.player_id)
+                  tr.player_id, tt.id, tt.display_name, tt.abbreviation,
+                  tt.logo_url, tt.logo_dark_url, tt.color
+           FROM trivia_rosters tr
+           JOIN trivia_teams tt ON tt.id = tr.team_id
+           WHERE tr.player_id = ANY($1)
+           ORDER BY tr.player_id, tr.season DESC`,
+          [needsFallback.map(r => r.player_id)]
+        );
+        fallbackTeamMap = Object.fromEntries(fbRes.rows.map(r => [r.player_id, r]));
       }
 
       // For display_all_teams slots, fetch all rosters in one query
@@ -85,6 +102,10 @@ export async function load({ parent, params }) {
         } else if (hd.display_team_id && teamMap[hd.display_team_id]) {
           const t = teamMap[hd.display_team_id];
           resolved = { ...resolved, team_name: t.display_name, logo_url: t.logo_url, logo_dark_url: t.logo_dark_url, team_color: t.color };
+        } else {
+          // Fallback: most recent rostered team (covers SQL-fill and any unset hint_data)
+          const t = fallbackTeamMap[r.player_id];
+          if (t) resolved = { ...resolved, team_name: t.display_name, logo_url: t.logo_url, logo_dark_url: t.logo_dark_url, team_color: t.color };
         }
         return { id: r.id, sort_order: r.sort_order, hintData: resolved };
       });
