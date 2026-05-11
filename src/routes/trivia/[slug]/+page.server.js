@@ -8,6 +8,32 @@ export async function load({ parent, params }) {
   const { slug } = params;
   const db = await createClient();
   try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS trivia_games (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(200) NOT NULL,
+        prompt TEXT NOT NULL,
+        slug VARCHAR(100) UNIQUE NOT NULL,
+        time_limit_seconds INTEGER DEFAULT 180,
+        published BOOLEAN DEFAULT FALSE,
+        database_ids INTEGER[],
+        hint_fields TEXT[],
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS trivia_game_answers (
+        id SERIAL PRIMARY KEY,
+        game_id INTEGER REFERENCES trivia_games(id) ON DELETE CASCADE,
+        player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
+        hint_data JSONB,
+        sort_order INTEGER DEFAULT 0,
+        UNIQUE(game_id, player_id)
+      )
+    `).catch(() => {}); // trivia_players may not exist yet; game page won't find a game anyway
+
     const gameRes = await db.query(
       `SELECT id, title, prompt, slug, time_limit_seconds
        FROM trivia_games
