@@ -1,5 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import { createClient } from '$lib/server/db.js';
+import { VALID_STAT_KEYS, statLabel } from '$lib/trivia-stats.js';
 
 export async function load({ parent, params }) {
   const { session } = await parent();
@@ -8,48 +9,112 @@ export async function load({ parent, params }) {
   const { slug } = params;
   const db = await createClient();
   try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS trivia_games (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(200) NOT NULL,
-        prompt TEXT NOT NULL,
-        slug VARCHAR(100) UNIQUE NOT NULL,
-        time_limit_seconds INTEGER DEFAULT 180,
-        published BOOLEAN DEFAULT FALSE,
-        database_ids INTEGER[],
-        hint_fields TEXT[],
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS trivia_game_answers (
-        id SERIAL PRIMARY KEY,
-        game_id INTEGER REFERENCES trivia_games(id) ON DELETE CASCADE,
-        player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
-        hint_data JSONB,
-        sort_order INTEGER DEFAULT 0,
-        UNIQUE(game_id, player_id)
-      )
-    `).catch(() => {}); // trivia_players may not exist yet; game page won't find a game anyway
-
     const gameRes = await db.query(
-      `SELECT id, title, prompt, slug, time_limit_seconds
+      `SELECT id, title, prompt, slug, time_limit_seconds,
+              hint_type, hint_stat_field, search_display_fields
        FROM trivia_games
        WHERE slug = $1 AND published = true`,
       [slug]
     );
     if (gameRes.rows.length === 0) throw error(404, 'Game not found');
     const game = gameRes.rows[0];
+    const hintType = game.hint_type ?? 'blank';
 
+    // Base slot query — always join player for name/headshot
     const slotsRes = await db.query(
-      `SELECT tga.id, tga.hint_data, tga.sort_order
+      `SELECT tga.id, tga.hint_data, tga.sort_order,
+              tp.id AS player_id, tp.full_name, tp.headshot_url
        FROM trivia_game_answers tga
+       JOIN trivia_players tp ON tp.id = tga.player_id
        WHERE tga.game_id = $1
        ORDER BY tga.sort_order ASC, tga.id ASC`,
       [game.id]
     );
+    const rawSlots = slotsRes.rows;
+
+    // Resolve hint_data based on hint_type
+    let slots;
+
+    if (hintType === 'player_name' || hintType === 'player_headshot') {
+      slots = rawSlots.map(r => ({
+        id: r.id, sort_order: r.sort_order,
+        hintData: { ...r.hint_data, player_name: r.full_name, headshot_url: r.headshot_url },
+      }));
+
+    } else if (hintType === 'team_logo' || hintType === 'team_name') {
+      // Collect all display_team_ids for a single lookup
+      const teamIds = rawSlots.map(r => r.hint_data?.display_team_id).filter(Boolean);
+      let teamMap = {};
+      if (teamIds.length > 0) {
+        const teamRes = await db.query(
+          `SELECT id, display_name, abbreviation, logo_url, logo_dark_url, color
+           FROM trivia_teams WHERE id = ANY($1)`,
+          [teamIds]
+        );
+        teamMap = Object.fromEntries(teamRes.rows.map(t => [t.id, t]));
+      }
+
+      // For display_all_teams slots, fetch all rosters in one query
+      const allTeamsPlayerIds = rawSlots
+        .filter(r => r.hint_data?.display_all_teams)
+        .map(r => r.player_id);
+      let playerTeamsMap = {};
+      if (allTeamsPlayerIds.length > 0) {
+        const rRes = await db.query(
+          `SELECT DISTINCT tr.player_id,
+                  tt.id, tt.display_name, tt.abbreviation, tt.logo_url, tt.color
+           FROM trivia_rosters tr
+           JOIN trivia_teams tt ON tt.id = tr.team_id
+           WHERE tr.player_id = ANY($1)`,
+          [allTeamsPlayerIds]
+        );
+        for (const row of rRes.rows) {
+          if (!playerTeamsMap[row.player_id]) playerTeamsMap[row.player_id] = [];
+          playerTeamsMap[row.player_id].push({
+            id: row.id, display_name: row.display_name, abbreviation: row.abbreviation,
+            logo_url: row.logo_url, color: row.color,
+          });
+        }
+      }
+
+      slots = rawSlots.map(r => {
+        const hd = r.hint_data ?? {};
+        let resolved = { ...hd };
+        if (hd.display_all_teams) {
+          resolved.teams = playerTeamsMap[r.player_id] ?? [];
+        } else if (hd.display_team_id && teamMap[hd.display_team_id]) {
+          const t = teamMap[hd.display_team_id];
+          resolved = { ...resolved, team_name: t.display_name, logo_url: t.logo_url, logo_dark_url: t.logo_dark_url, team_color: t.color };
+        }
+        return { id: r.id, sort_order: r.sort_order, hintData: resolved };
+      });
+
+    } else if (hintType === 'stat_line' && VALID_STAT_KEYS.includes(game.hint_stat_field)) {
+      const field = game.hint_stat_field;
+      const playerIds = rawSlots.map(r => r.player_id);
+      // Get most recent stat per player
+      const statsRes = await db.query(
+        `SELECT DISTINCT ON (tr.player_id) tr.player_id, ps.${field} AS stat_value
+         FROM trivia_player_stats ps
+         JOIN trivia_rosters tr ON tr.id = ps.roster_id
+         WHERE tr.player_id = ANY($1) AND ps.${field} IS NOT NULL
+         ORDER BY tr.player_id, tr.season DESC`,
+        [playerIds]
+      );
+      const statsMap = Object.fromEntries(statsRes.rows.map(r => [r.player_id, r.stat_value]));
+
+      slots = rawSlots.map(r => ({
+        id: r.id, sort_order: r.sort_order,
+        hintData: {
+          ...r.hint_data,
+          stat_label: statLabel(field),
+          stat_value: statsMap[r.player_id] ?? null,
+        },
+      }));
+
+    } else {
+      slots = rawSlots.map(r => ({ id: r.id, sort_order: r.sort_order, hintData: r.hint_data ?? {} }));
+    }
 
     return {
       game: {
@@ -58,13 +123,11 @@ export async function load({ parent, params }) {
         prompt: game.prompt,
         slug: game.slug,
         time_limit_seconds: game.time_limit_seconds,
-        total: slotsRes.rows.length
+        hint_type: hintType,
+        search_display_fields: game.search_display_fields ?? [],
+        total: slots.length,
       },
-      slots: slotsRes.rows.map(r => ({
-        id: r.id,
-        hintData: r.hint_data ?? {},
-        sort_order: r.sort_order
-      }))
+      slots,
     };
   } finally {
     await db.end();

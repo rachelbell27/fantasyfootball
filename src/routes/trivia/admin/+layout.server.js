@@ -76,6 +76,10 @@ export async function load({ cookies, parent }) {
         ('NCAA Football', 'ncaa-football', 2, 'NCAA Division I Football (FBS)')
       ON CONFLICT (slug) DO NOTHING
     `);
+    // Migrations for hint/search config
+    await db.query(`ALTER TABLE trivia_games ADD COLUMN IF NOT EXISTS hint_type VARCHAR(20) DEFAULT 'blank'`);
+    await db.query(`ALTER TABLE trivia_games ADD COLUMN IF NOT EXISTS search_display_fields TEXT[] DEFAULT '{}'`);
+    await db.query(`ALTER TABLE trivia_games ADD COLUMN IF NOT EXISTS hint_stat_field VARCHAR(50)`);
 
     return {};
   } finally {

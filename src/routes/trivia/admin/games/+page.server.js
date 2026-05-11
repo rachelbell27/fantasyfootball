@@ -5,14 +5,9 @@ export async function load() {
   try {
     const gamesRes = await db.query(`
       SELECT
-        tg.id,
-        tg.title,
-        tg.prompt,
-        tg.slug,
-        tg.time_limit_seconds,
-        tg.published,
-        tg.database_ids,
-        tg.hint_fields,
+        tg.id, tg.title, tg.prompt, tg.slug, tg.time_limit_seconds,
+        tg.published, tg.database_ids, tg.hint_fields,
+        tg.hint_type, tg.search_display_fields, tg.hint_stat_field,
         tg.created_at,
         COUNT(tga.id)::int AS answer_count,
         ARRAY_AGG(DISTINCT td.name) FILTER (WHERE td.name IS NOT NULL) AS databases
@@ -29,7 +24,7 @@ export async function load() {
 
     return {
       games: gamesRes.rows,
-      databases: dbsRes.rows
+      databases: dbsRes.rows,
     };
   } finally {
     await db.end();

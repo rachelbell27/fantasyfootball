@@ -30,33 +30,37 @@ export async function GET({ url, cookies }) {
       ? dbsParam.split(',').map(s => parseInt(s, 10)).filter(n => !isNaN(n))
       : [];
 
-    let query;
-    let params;
+    const dbFilter = dbIds.length > 0 ? 'AND tp.database_id = ANY($2)' : '';
+    const params = dbIds.length > 0 ? [`%${q}%`, dbIds] : [`%${q}%`];
 
-    if (dbIds.length > 0) {
-      query = `
-        SELECT tp.id, tp.full_name, tp.aliases, tp.database_id, td.name AS database_name
-        FROM trivia_players tp
-        JOIN trivia_databases td ON td.id = tp.database_id
-        WHERE tp.full_name ILIKE $1
-          AND tp.database_id = ANY($2)
-        ORDER BY tp.full_name ASC
-        LIMIT 20
-      `;
-      params = [`%${q}%`, dbIds];
-    } else {
-      query = `
-        SELECT tp.id, tp.full_name, tp.aliases, tp.database_id, td.name AS database_name
-        FROM trivia_players tp
-        JOIN trivia_databases td ON td.id = tp.database_id
-        WHERE tp.full_name ILIKE $1
-        ORDER BY tp.full_name ASC
-        LIMIT 20
-      `;
-      params = [`%${q}%`];
-    }
+    const res = await db.query(`
+      SELECT
+        tp.id, tp.full_name, tp.aliases, tp.database_id,
+        tp.college, tp.draft_year, tp.headshot_url,
+        tdb.name AS database_name,
+        COALESCE(
+          JSON_AGG(
+            DISTINCT JSONB_BUILD_OBJECT(
+              'id',           tt.id,
+              'display_name', tt.display_name,
+              'abbreviation', tt.abbreviation,
+              'logo_url',     tt.logo_url,
+              'color',        tt.color,
+              'season',       tr.season
+            )
+          ) FILTER (WHERE tt.id IS NOT NULL),
+          '[]'::json
+        ) AS teams
+      FROM trivia_players tp
+      JOIN trivia_databases tdb ON tdb.id = tp.database_id
+      LEFT JOIN trivia_rosters tr ON tr.player_id = tp.id
+      LEFT JOIN trivia_teams tt ON tt.id = tr.team_id
+      WHERE tp.full_name ILIKE $1 ${dbFilter}
+      GROUP BY tp.id, tdb.name
+      ORDER BY tp.full_name ASC
+      LIMIT 20
+    `, params);
 
-    const res = await db.query(query, params);
     return json(res.rows);
   } finally {
     await db.end();
