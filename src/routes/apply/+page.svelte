@@ -1,7 +1,9 @@
 <script>
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
-  import { PUBLIC_HCAPTCHA_SITE_KEY } from '$env/static/public';
+
+  let { data } = $props();
+  const siteKey = data?.siteKey ?? '';
 
   // Form field state
   let name            = $state('');
@@ -49,12 +51,12 @@
   }
 
   onMount(() => {
-    if (!PUBLIC_HCAPTCHA_SITE_KEY) return;
+    if (!siteKey) return;
 
     window._hcLoad = () => {
       if (window.hcaptcha && captchaContainer) {
         window.hcaptcha.render(captchaContainer, {
-          sitekey: PUBLIC_HCAPTCHA_SITE_KEY,
+          sitekey: siteKey,
           callback: (token) => { captchaToken = token; },
           'expired-callback': () => { captchaToken = ''; },
           'error-callback': () => { captchaToken = ''; },
@@ -316,7 +318,7 @@
         <!-- hCaptcha -->
         <div class="field">
           <div bind:this={captchaContainer}></div>
-          {#if !PUBLIC_HCAPTCHA_SITE_KEY}
+          {#if !siteKey}
             <p class="captcha-missing">hCaptcha not configured.</p>
           {/if}
         </div>

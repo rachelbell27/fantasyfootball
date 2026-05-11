@@ -1,6 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import { createClient } from '$lib/server/db.js';
-import { HCAPTCHA_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+import { env as pubEnv } from '$env/dynamic/public';
+
+export async function load() {
+  return { siteKey: pubEnv.PUBLIC_HCAPTCHA_SITE_KEY ?? '' };
+}
 
 export const actions = {
   default: async ({ request }) => {
@@ -34,7 +39,7 @@ export const actions = {
       const verifyRes = await fetch('https://hcaptcha.com/siteverify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ secret: HCAPTCHA_SECRET ?? '', response: captchaToken }).toString()
+        body: new URLSearchParams({ secret: env.HCAPTCHA_SECRET ?? '', response: captchaToken }).toString()
       });
       const verifyJson = await verifyRes.json();
       if (!verifyJson.success) {
