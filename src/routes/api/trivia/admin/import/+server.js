@@ -1,33 +1,277 @@
 import { json, error } from '@sveltejs/kit';
 import { createClient } from '$lib/server/db.js';
 import { serverSupabase } from '$lib/server/auth.js';
-import { env } from '$env/dynamic/private';
 
 async function getAdminUser(cookies, db) {
   const supabase = serverSupabase(cookies);
-  const { data } = await supabase.auth.getSession(); const session = data?.session;
+  const { data } = await supabase.auth.getSession();
+  const session = data?.session;
   if (!session) return null;
-  const res = await db.query(
-    'SELECT id, is_admin FROM users WHERE supabase_uid = $1',
-    [session.user.id]
-  );
+  const res = await db.query('SELECT id, is_admin FROM users WHERE supabase_uid = $1', [session.user.id]);
   const user = res.rows[0];
   if (!user?.is_admin) return null;
   return user;
 }
 
-async function upsertPlayers(db, databaseId, players) {
-  let inserted = 0;
-  let updated = 0;
+async function ensureSchema(db) {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS trivia_teams (
+      id           SERIAL PRIMARY KEY,
+      database_id  INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
+      espn_id      VARCHAR(20) NOT NULL,
+      display_name VARCHAR(150) NOT NULL,
+      abbreviation VARCHAR(10),
+      location     VARCHAR(100),
+      slug         VARCHAR(100),
+      logo_url     TEXT,
+      color        VARCHAR(7),
+      created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(database_id, espn_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS trivia_rosters (
+      id        SERIAL PRIMARY KEY,
+      team_id   INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
+      player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
+      season    INTEGER NOT NULL,
+      position  VARCHAR(10),
+      jersey    VARCHAR(5),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(team_id, player_id, season)
+    )
+  `);
+}
 
-  for (const p of players) {
-    const { full_name, aliases = [], metadata = {}, api_player_id = null } = p;
+const SITE = 'https://site.api.espn.com/apis/site/v2/sports/football';
+const CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues';
+
+const LEAGUE_MAP = {
+  'nfl':              'nfl',
+  'college-football': 'college-football',
+  'ncaa-football':    'college-football',
+};
+
+// ── Teams ──────────────────────────────────────────────────────────────────
+
+async function upsertTeams(db, databaseId, espnLeague) {
+  const resp = await fetch(`${SITE}/${espnLeague}/teams?limit=200`);
+  if (!resp.ok) throw error(502, `ESPN /teams: ${resp.status}`);
+  const data = await resp.json();
+  const teams = (data.sports?.[0]?.leagues?.[0]?.teams ?? []).map(t => t.team).filter(t => t?.id);
+
+  const teamLookup = {}; // espn_id (string) → { id: db_pk, displayName }
+
+  for (const team of teams) {
+    const res = await db.query(
+      `INSERT INTO trivia_teams (database_id, espn_id, display_name, abbreviation, location, slug, logo_url, color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (database_id, espn_id) DO UPDATE
+         SET display_name = EXCLUDED.display_name,
+             abbreviation = EXCLUDED.abbreviation,
+             location     = EXCLUDED.location,
+             slug         = EXCLUDED.slug,
+             logo_url     = EXCLUDED.logo_url,
+             color        = EXCLUDED.color
+       RETURNING id, espn_id, display_name`,
+      [
+        databaseId, String(team.id), team.displayName, team.abbreviation,
+        team.location, team.slug,
+        team.logos?.[0]?.href ?? null,
+        team.color ? `#${team.color}` : null,
+      ]
+    );
+    const row = res.rows[0];
+    teamLookup[row.espn_id] = { id: row.id, displayName: row.display_name };
+  }
+
+  return teamLookup;
+}
+
+// ── NFL: core API athlete list → batch detail fetch ────────────────────────
+
+async function fetchNflAthletes(season) {
+  const athleteIds = new Set();
+  let page = 1;
+  let pageCount = 1;
+  const MAX_PAGES = 10; // active=true should give ≤2 pages for NFL; cap as safety net
+
+  while (page <= pageCount && page <= MAX_PAGES) {
+    const url = `${CORE}/nfl/seasons/${season}/athletes?active=true&limit=1000&page=${page}`;
+    const resp = await fetch(url);
+    if (!resp.ok) break;
+    const data = await resp.json();
+    if (page === 1) pageCount = data.pageCount ?? 1;
+    for (const item of data.items ?? []) {
+      const m = item.$ref?.match(/\/athletes\/(\d+)/);
+      if (m) athleteIds.add(m[1]);
+    }
+    page++;
+  }
+
+  // Batch-fetch athlete details (100 parallel at a time)
+  const ids = Array.from(athleteIds);
+  const BATCH = 100;
+  const athletes = [];
+
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(id =>
+        fetch(`${CORE}/nfl/seasons/${season}/athletes/${id}`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    );
+    athletes.push(...results.filter(Boolean));
+  }
+
+  return athletes.map(a => {
+    const fullName = a.fullName ?? [a.firstName, a.lastName].filter(Boolean).join(' ');
+    if (!fullName) return null;
+    const teamMatch = a.team?.$ref?.match(/\/teams\/(\d+)/);
+    return {
+      espnId:      String(a.id),
+      fullName,
+      shortName:   a.shortName ?? null,
+      position:    a.position?.abbreviation ?? null,
+      jersey:      a.jersey ?? null,
+      espnTeamId:  teamMatch?.[1] ?? null,
+    };
+  }).filter(Boolean);
+}
+
+// ── CFB / others: site API team-by-team rosters (inline data) ──────────────
+
+async function fetchRostersFromTeams(teamLookup, espnLeague) {
+  const teamIds = Object.keys(teamLookup);
+  const BATCH = 10;
+  const players = [];
+
+  for (let i = 0; i < teamIds.length; i += BATCH) {
+    const batch = teamIds.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(espnTeamId =>
+        fetch(`${SITE}/${espnLeague}/teams/${espnTeamId}/roster`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    );
+
+    for (let j = 0; j < batch.length; j++) {
+      const data = results[j];
+      const espnTeamId = batch[j];
+      if (!data) continue;
+
+      for (const group of data.athletes ?? []) {
+        for (const player of group.items ?? []) {
+          const fullName = player.fullName ?? [player.firstName, player.lastName].filter(Boolean).join(' ');
+          if (!fullName) continue;
+          players.push({
+            espnId:     String(player.id),
+            fullName,
+            shortName:  player.shortName ?? null,
+            position:   player.position?.abbreviation ?? null,
+            jersey:     player.jersey ?? null,
+            espnTeamId,
+          });
+        }
+      }
+    }
+  }
+
+  return players;
+}
+
+// ── DB upsert (players + rosters) ──────────────────────────────────────────
+
+async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, season) {
+  let inserted = 0, updated = 0, rosterRows = 0;
+
+  // Collect roster entries separately to batch-insert after player upserts
+  const rosterPlan = []; // { teamDbId, espnId }
+
+  for (const p of parsedPlayers) {
+    const teamInfo = p.espnTeamId ? teamLookup[p.espnTeamId] : null;
+    const aliases = (p.shortName && p.shortName !== p.fullName) ? [p.shortName] : [];
+    const metadata = {
+      position: p.position,
+      teams:    teamInfo ? [teamInfo.displayName] : [],
+      seasons:  [String(season)],
+      jersey:   p.jersey,
+    };
+
+    const res = await db.query(
+      `INSERT INTO trivia_players (database_id, full_name, aliases, metadata, api_player_id)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (api_player_id, database_id) DO UPDATE
+         SET full_name = EXCLUDED.full_name,
+             aliases   = EXCLUDED.aliases,
+             metadata  = jsonb_strip_nulls(
+               trivia_players.metadata || jsonb_build_object(
+                 'position', EXCLUDED.metadata->>'position',
+                 'jersey',   EXCLUDED.metadata->>'jersey'
+               ) || jsonb_build_object(
+                 'teams',    (
+                   SELECT jsonb_agg(DISTINCT v)
+                   FROM jsonb_array_elements(
+                     COALESCE(trivia_players.metadata->'teams', '[]'::jsonb) ||
+                     EXCLUDED.metadata->'teams'
+                   ) v
+                 ),
+                 'seasons',  (
+                   SELECT jsonb_agg(DISTINCT v ORDER BY v)
+                   FROM jsonb_array_elements(
+                     COALESCE(trivia_players.metadata->'seasons', '[]'::jsonb) ||
+                     EXCLUDED.metadata->'seasons'
+                   ) v
+                 )
+               )
+             )
+       RETURNING id, (xmax = 0) AS is_insert`,
+      [databaseId, p.fullName, aliases, metadata, Number(p.espnId)]
+    );
+
+    const row = res.rows[0];
+    if (row.is_insert) inserted++; else updated++;
+
+    if (teamInfo) {
+      rosterPlan.push({ teamDbId: teamInfo.id, playerDbId: row.id });
+    }
+  }
+
+  // Bulk insert roster entries
+  if (rosterPlan.length > 0) {
+    const teamIds   = rosterPlan.map(r => r.teamDbId);
+    const playerIds = rosterPlan.map(r => r.playerDbId);
+    const positions = parsedPlayers.filter(p => p.espnTeamId && teamLookup[p.espnTeamId]).map(p => p.position);
+    const jerseys   = parsedPlayers.filter(p => p.espnTeamId && teamLookup[p.espnTeamId]).map(p => p.jersey);
+
+    // Use unnest for bulk insert
+    await db.query(
+      `INSERT INTO trivia_rosters (team_id, player_id, season, position, jersey)
+       SELECT unnest($1::int[]), unnest($2::int[]), $3, unnest($4::text[]), unnest($5::text[])
+       ON CONFLICT (team_id, player_id, season) DO UPDATE
+         SET position = EXCLUDED.position,
+             jersey   = EXCLUDED.jersey`,
+      [teamIds, playerIds, season, positions, jerseys]
+    );
+    rosterRows = rosterPlan.length;
+  }
+
+  return { inserted, updated, rosterRows };
+}
+
+// ── CSV import (unchanged) ──────────────────────────────────────────────────
+
+async function upsertFromCsv(db, databaseId, players) {
+  let inserted = 0, updated = 0;
+  for (const { full_name, aliases = [], metadata = {}, api_player_id = null } of players) {
     if (!full_name) continue;
-
     if (api_player_id) {
       const res = await db.query(
         `INSERT INTO trivia_players (database_id, full_name, aliases, metadata, api_player_id)
-         VALUES ($1, $2, $3, $4, $5)
+         VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT (api_player_id, database_id) DO UPDATE
            SET full_name = EXCLUDED.full_name,
                aliases   = EXCLUDED.aliases,
@@ -38,77 +282,16 @@ async function upsertPlayers(db, databaseId, players) {
       if (res.rows[0]?.is_insert) inserted++; else updated++;
     } else {
       await db.query(
-        `INSERT INTO trivia_players (database_id, full_name, aliases, metadata)
-         VALUES ($1, $2, $3, $4)`,
+        'INSERT INTO trivia_players (database_id, full_name, aliases, metadata) VALUES ($1,$2,$3,$4)',
         [databaseId, full_name, aliases, metadata]
       );
       inserted++;
     }
   }
-
   return { inserted, updated };
 }
 
-// Fetch all players for one season by iterating all teams.
-// The /players/statistics endpoint requires (team + season) — there is no league filter.
-async function importSeason(leagueId, season, apiKey) {
-  const headers = { 'x-apisports-key': apiKey };
-  const base = 'https://v1.american-football.api-sports.io';
-
-  // Step 1: all teams for this league + season
-  const teamsResp = await fetch(`${base}/teams?league=${leagueId}&season=${season}`, { headers });
-  if (!teamsResp.ok) throw error(502, `API returned ${teamsResp.status} fetching teams`);
-
-  const teamsData = await teamsResp.json();
-  if (teamsData.errors && Object.keys(teamsData.errors).length > 0) {
-    const msg = Object.values(teamsData.errors).join('; ');
-    throw error(502, `API error: ${msg}`);
-  }
-
-  const teams = teamsData.response ?? [];
-  if (teams.length === 0) return new Map();
-
-  // Step 2: player statistics per team — deduplicate across teams by api_player_id
-  const players = new Map();
-
-  for (const teamEntry of teams) {
-    const teamId = teamEntry.team?.id;
-    const teamName = teamEntry.team?.name;
-    if (!teamId) continue;
-
-    const statsResp = await fetch(
-      `${base}/players/statistics?team=${teamId}&season=${season}`,
-      { headers }
-    );
-    if (!statsResp.ok) continue;
-
-    const statsData = await statsResp.json();
-    for (const entry of statsData.response ?? []) {
-      const player = entry.player ?? {};
-      const playerId = player.id;
-      if (!playerId) continue;
-
-      const fullName = [player.firstname, player.lastname].filter(Boolean).join(' ');
-      if (!fullName) continue;
-
-      if (!players.has(playerId)) {
-        players.set(playerId, {
-          full_name: fullName,
-          aliases: [],
-          api_player_id: playerId,
-          metadata: { position: player.position ?? null, teams: [], seasons: [] }
-        });
-      }
-
-      const rec = players.get(playerId);
-      if (teamName && !rec.metadata.teams.includes(teamName)) rec.metadata.teams.push(teamName);
-      const seasonStr = String(season);
-      if (!rec.metadata.seasons.includes(seasonStr)) rec.metadata.seasons.push(seasonStr);
-    }
-  }
-
-  return players;
-}
+// ── Handler ─────────────────────────────────────────────────────────────────
 
 export async function POST({ request, cookies }) {
   const db = await createClient();
@@ -116,63 +299,49 @@ export async function POST({ request, cookies }) {
     const admin = await getAdminUser(cookies, db);
     if (!admin) throw error(403, 'Forbidden');
 
+    await ensureSchema(db);
+
     const body = await request.json();
-    const { databaseId, importType, season, allSeasons, players } = body;
+    const { databaseId, importType, season, players } = body;
     if (!databaseId) throw error(400, 'databaseId required');
 
-    let result;
+    if (importType === 'espn') {
+      if (!season) throw error(400, 'season is required for ESPN import');
 
-    if (importType === 'api') {
-      const dbRes = await db.query(
-        'SELECT api_league_id FROM trivia_databases WHERE id = $1',
-        [databaseId]
-      );
-      if (dbRes.rows.length === 0) throw error(404, 'Database not found');
-      const leagueId = dbRes.rows[0].api_league_id;
-      if (!leagueId) throw error(400, 'Database has no api_league_id configured');
+      const dbRes = await db.query('SELECT slug FROM trivia_databases WHERE id = $1', [databaseId]);
+      const slug = dbRes.rows[0]?.slug;
+      const espnLeague = LEAGUE_MAP[slug];
+      if (!espnLeague) throw error(400, `No ESPN mapping for database slug "${slug}"`);
 
-      const apiKey = env.SPORTSIO_APIKEY ?? '';
-      if (!apiKey) throw error(500, 'SPORTSIO_APIKEY not configured');
+      // 1. Import teams first (needed for roster linkage)
+      const teamLookup = await upsertTeams(db, databaseId, espnLeague);
 
-      if (allSeasons) {
-        // Import all available seasons (API data starts at 2022)
-        const currentYear = new Date().getFullYear();
-        // NFL season year = calendar year the season starts; go back to 2022
-        const seasons = [];
-        for (let y = 2022; y <= currentYear; y++) seasons.push(y);
-
-        const merged = new Map();
-        for (const s of seasons) {
-          const seasonPlayers = await importSeason(leagueId, s, apiKey);
-          for (const [id, rec] of seasonPlayers) {
-            if (!merged.has(id)) {
-              merged.set(id, rec);
-            } else {
-              // Merge teams and seasons from later season runs
-              const existing = merged.get(id);
-              for (const t of rec.metadata.teams) {
-                if (!existing.metadata.teams.includes(t)) existing.metadata.teams.push(t);
-              }
-              for (const sv of rec.metadata.seasons) {
-                if (!existing.metadata.seasons.includes(sv)) existing.metadata.seasons.push(sv);
-              }
-            }
-          }
-        }
-        result = await upsertPlayers(db, databaseId, Array.from(merged.values()));
+      // 2. Fetch athletes — strategy depends on league
+      let parsedPlayers;
+      if (espnLeague === 'nfl') {
+        // Core API: season-specific athlete list → batch detail fetches
+        parsedPlayers = await fetchNflAthletes(season);
       } else {
-        if (!season) throw error(400, 'season required for api import');
-        const seasonPlayers = await importSeason(leagueId, season, apiKey);
-        result = await upsertPlayers(db, databaseId, Array.from(seasonPlayers.values()));
+        // Site API: team-by-team inline rosters (handles large CFB team count)
+        parsedPlayers = await fetchRostersFromTeams(teamLookup, espnLeague);
       }
 
-    } else if (Array.isArray(players)) {
-      result = await upsertPlayers(db, databaseId, players);
-    } else {
-      throw error(400, 'Either players array or importType=api + season/allSeasons required');
-    }
+      // 3. Upsert players + roster entries
+      const result = await savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, season);
 
-    return json({ success: true, ...result });
+      return json({
+        success: true,
+        teams:   Object.keys(teamLookup).length,
+        ...result,
+      });
+
+    } else if (Array.isArray(players)) {
+      const result = await upsertFromCsv(db, databaseId, players);
+      return json({ success: true, ...result });
+
+    } else {
+      throw error(400, 'importType=espn with season, or players array required');
+    }
   } finally {
     await db.end();
   }

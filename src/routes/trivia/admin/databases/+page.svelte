@@ -79,26 +79,19 @@
     }
   }
 
-  async function importFromApi(db, opts = {}) {
-    if (!db.api_league_id) {
-      alert('This database has no api_league_id set.');
-      return;
-    }
+  async function importFromEspn(db) {
     importDbId = db.id;
-    importStatus = '';
+    importStatus = 'Importing… (may take 10–20 seconds)';
     importLoading = true;
     try {
-      const body = opts.allSeasons
-        ? { databaseId: db.id, importType: 'api', allSeasons: true }
-        : { databaseId: db.id, importType: 'api', season: importSeason };
       const res = await fetch('/api/trivia/admin/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ databaseId: db.id, importType: 'espn', season: importSeason })
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message ?? `Error ${res.status}`);
-      importStatus = `Done. Inserted: ${result.inserted}, Updated: ${result.updated}`;
+      importStatus = `Done — ${result.teams ?? 0} teams, ${result.inserted} new players, ${result.updated} updated, ${result.rosterRows ?? 0} roster entries.`;
       await invalidateAll();
     } catch (err) {
       importStatus = `Error: ${err.message}`;
@@ -222,7 +215,7 @@
           {#if db.api_league_id}
             <span class="db-pill">League ID: {db.api_league_id}</span>
           {/if}
-          <span class="player-count db-sub">{db.player_count} player{db.player_count !== 1 ? 's' : ''}</span>
+          <span class="player-count db-sub">{db.team_count ?? 0} teams · {db.player_count} player{db.player_count !== 1 ? 's' : ''}</span>
         </div>
         <button class="db-btn danger" onclick={() => deleteDatabase(db)}>Delete</button>
       </div>
@@ -260,43 +253,34 @@
           {/if}
         </div>
 
-        <!-- API import -->
-        {#if db.api_league_id}
-          <div class="import-block">
-            <p class="import-label db-sub">API Sports import</p>
-            <div class="import-row">
-              <input
-                class="db-input season-input"
-                type="number"
-                bind:value={importSeason}
-                min="2000"
-                max="2099"
-                placeholder="Season year"
-              />
-              <button
-                class="db-btn"
-                onclick={() => importFromApi(db)}
-                disabled={importLoading && importDbId === db.id}
-              >
-                {importLoading && importDbId === db.id ? 'Importing…' : 'This season'}
-              </button>
-              <button
-                class="db-btn"
-                onclick={() => importFromApi(db, { allSeasons: true })}
-                disabled={importLoading && importDbId === db.id}
-                title="Imports 2022 → current year. Uses many API calls — do once."
-              >
-                {importLoading && importDbId === db.id ? 'Importing…' : 'All seasons (2022→now)'}
-              </button>
-            </div>
-            <p class="import-hint db-sub" style="font-size:11px;margin-top:4px">
-              "All seasons" fetches every team then every roster — uses ~33 API calls per season (100/day on free plan).
-            </p>
-            {#if importStatus && importDbId === db.id}
-              <p class="import-status" class:error={importStatus.startsWith('Error')}>{importStatus}</p>
-            {/if}
+        <!-- ESPN import -->
+        <div class="import-block">
+          <p class="import-label db-sub">ESPN import (free, no key needed)</p>
+          <p class="import-hint db-sub" style="font-size:11px">
+            Imports teams + rosters for one season. NFL uses ESPN's core API (season-accurate).
+            College football uses current rosters. One season at a time.
+          </p>
+          <div class="import-row">
+            <input
+              class="db-input season-input"
+              type="number"
+              bind:value={importSeason}
+              min="2000"
+              max="2099"
+              placeholder="Season year"
+            />
+            <button
+              class="db-btn primary"
+              onclick={() => { importDbId = db.id; importFromEspn(db); }}
+              disabled={importLoading && importDbId === db.id}
+            >
+              {importLoading && importDbId === db.id ? 'Importing…' : 'Import from ESPN →'}
+            </button>
           </div>
-        {/if}
+          {#if importStatus && importDbId === db.id}
+            <p class="import-status" class:error={importStatus.startsWith('Error')}>{importStatus}</p>
+          {/if}
+        </div>
       </div>
     </div>
   {/each}

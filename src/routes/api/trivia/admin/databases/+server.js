@@ -21,17 +21,32 @@ export async function GET({ cookies }) {
     const admin = await getAdminUser(cookies, db);
     if (!admin) throw error(403, 'Forbidden');
 
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS trivia_teams (
+        id SERIAL PRIMARY KEY, database_id INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
+        espn_id VARCHAR(20) NOT NULL, display_name VARCHAR(150) NOT NULL,
+        abbreviation VARCHAR(10), location VARCHAR(100), slug VARCHAR(100),
+        logo_url TEXT, color VARCHAR(7), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(database_id, espn_id)
+      )
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS trivia_rosters (
+        id SERIAL PRIMARY KEY, team_id INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
+        player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
+        season INTEGER NOT NULL, position VARCHAR(10), jersey VARCHAR(5),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(team_id, player_id, season)
+      )
+    `);
+
     const res = await db.query(`
       SELECT
-        td.id,
-        td.name,
-        td.slug,
-        td.api_league_id,
-        td.description,
-        td.created_at,
-        COUNT(tp.id)::int AS player_count
+        td.id, td.name, td.slug, td.api_league_id, td.description, td.created_at,
+        COUNT(DISTINCT tp.id)::int  AS player_count,
+        COUNT(DISTINCT tt.id)::int  AS team_count
       FROM trivia_databases td
       LEFT JOIN trivia_players tp ON tp.database_id = td.id
+      LEFT JOIN trivia_teams   tt ON tt.database_id = td.id
       GROUP BY td.id
       ORDER BY td.name ASC
     `);

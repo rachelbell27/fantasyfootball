@@ -53,9 +53,26 @@ async function ensureTriviaSchema(db) {
   await db.query(`CREATE INDEX IF NOT EXISTS idx_trivia_games_slug ON trivia_games(slug)`);
   await db.query(`CREATE INDEX IF NOT EXISTS idx_trivia_games_published ON trivia_games(published)`);
   await db.query(`
-    INSERT INTO trivia_databases (name, slug, api_league_id, description) VALUES
-      ('NFL', 'nfl', 1, 'National Football League'),
-      ('NCAA Football', 'ncaa-football', 2, 'NCAA Division I Football (FBS)')
+    CREATE TABLE IF NOT EXISTS trivia_teams (
+      id SERIAL PRIMARY KEY, database_id INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
+      espn_id VARCHAR(20) NOT NULL, display_name VARCHAR(150) NOT NULL,
+      abbreviation VARCHAR(10), location VARCHAR(100), slug VARCHAR(100),
+      logo_url TEXT, color VARCHAR(7), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(database_id, espn_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS trivia_rosters (
+      id SERIAL PRIMARY KEY, team_id INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
+      player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
+      season INTEGER NOT NULL, position VARCHAR(10), jersey VARCHAR(5),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(team_id, player_id, season)
+    )
+  `);
+  await db.query(`
+    INSERT INTO trivia_databases (name, slug, description) VALUES
+      ('NFL', 'nfl', 'National Football League'),
+      ('College Football', 'college-football', 'NCAA Division I Football (FBS)')
     ON CONFLICT (slug) DO NOTHING
   `);
 }
