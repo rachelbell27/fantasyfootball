@@ -40,6 +40,7 @@
     { href: '/picks',   label: "Pick'ems", icon: '🏈', match: (p) => p.startsWith('/picks') || p.startsWith('/games') },
     { href: '/trivia',  label: 'Trivia',  icon: '🧠', match: (p) => p.startsWith('/trivia') },
     { href: '/league',  label: 'League',  icon: '🏆', match: (p) => p.startsWith('/league') },
+    { href: '/apply',   label: 'Apply',   icon: '📝', match: (p) => p === '/apply' },
   ];
 
   async function signOut() {
@@ -114,6 +115,8 @@
     </div>
 
     <a href="/league" class="db-nav-link" class:active={$page.url.pathname.startsWith('/league')}>The League</a>
+
+    <a href="/apply" class="db-nav-link" class:active={$page.url.pathname === '/apply'}>Apply</a>
 
     {#if data.profile?.is_admin || data.profile?.is_commissioner}
       <a href="/admin" class="db-nav-link" class:active={$page.url.pathname.startsWith('/admin')}>Admin</a>
