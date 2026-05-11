@@ -245,6 +245,20 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
   return { inserted, updated, rosterRows };
 }
 
+// ── Team lookup from DB (for chunked imports after teams are already saved) ─
+
+async function getTeamLookupFromDb(db, databaseId) {
+  const res = await db.query(
+    'SELECT id, espn_id, display_name FROM trivia_teams WHERE database_id = $1 ORDER BY espn_id',
+    [databaseId]
+  );
+  const lookup = {};
+  for (const row of res.rows) {
+    lookup[row.espn_id] = { id: row.id, displayName: row.display_name };
+  }
+  return lookup;
+}
+
 // ── Stats import ───────────────────────────────────────────────────────────
 
 const CORE = 'https://sports.core.api.espn.com/v2/sports/football';
@@ -355,7 +369,7 @@ export async function POST({ request, cookies }) {
     await ensureSchema(db).catch(e => { throw error(500, `Schema setup failed: ${e.message}`); });
 
     const body = await request.json();
-    const { databaseId, importType, season, players, offset = 0, limit = 40 } = body;
+    const { databaseId, importType, season, players, offset = 0, limit = 8 } = body;
     if (!databaseId) throw error(400, 'databaseId required');
 
     if (importType === 'espn-stats') {
@@ -376,19 +390,35 @@ export async function POST({ request, cookies }) {
       const espnLeague = LEAGUE_MAP[slug];
       if (!espnLeague) throw error(400, `No ESPN mapping for database slug "${slug}"`);
 
-      // 1. Import teams first (needed for roster linkage)
-      const teamLookup = await upsertTeams(db, databaseId, espnLeague);
+      // On first batch, fetch + save all teams from ESPN (idempotent upsert)
+      // On subsequent batches, read the already-saved teams from the DB
+      const fullLookup = offset === 0
+        ? await upsertTeams(db, databaseId, espnLeague)
+        : await getTeamLookupFromDb(db, databaseId);
 
-      // 2. Fetch athletes via site API team rosters (inline data, no per-player fetches)
-      const parsedPlayers = await fetchRostersFromTeams(teamLookup, espnLeague);
+      const allTeamIds = Object.keys(fullLookup);
+      const total = allTeamIds.length;
+      const batchIds = allTeamIds.slice(offset, offset + limit);
+      console.log(`[import] espn batch: offset=${offset} limit=${limit} teams=${batchIds.length}/${total}`);
 
-      // 3. Upsert players + roster entries
-      const result = await savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, season);
+      if (batchIds.length === 0) {
+        return json({ success: true, teams: total, inserted: 0, updated: 0, rosterRows: 0, hasMore: false, nextOffset: offset, total });
+      }
 
+      const subsetLookup = {};
+      for (const id of batchIds) subsetLookup[id] = fullLookup[id];
+
+      const parsedPlayers = await fetchRostersFromTeams(subsetLookup, espnLeague);
+      const result = await savePlayersAndRosters(db, databaseId, subsetLookup, parsedPlayers, season);
+
+      const nextOffset = offset + batchIds.length;
       return json({
         success: true,
-        teams:   Object.keys(teamLookup).length,
+        teams:  total,
         ...result,
+        hasMore:    nextOffset < total,
+        nextOffset,
+        total,
       });
 
     } else if (Array.isArray(players)) {

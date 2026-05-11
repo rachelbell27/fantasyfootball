@@ -17,6 +17,7 @@
   let importSeason = $state(new Date().getFullYear());
   let importStatus = $state('');
   let importLoading = $state(false);
+  let importProgress = $state({ done: 0, total: 0 });
 
   // CSV import
   let csvFile = $state(null);
@@ -88,17 +89,34 @@
 
   async function importFromEspn(db) {
     importDbId = db.id;
-    importStatus = 'Importing… (may take 10–20 seconds)';
+    importStatus = 'Starting roster import…';
     importLoading = true;
+    importProgress = { done: 0, total: 0 };
+
+    let offset = 0;
+    const limit = 8;
+    let totalInserted = 0, totalUpdated = 0, totalRosterRows = 0;
+
     try {
-      const res = await fetch('/api/trivia/admin/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ databaseId: db.id, importType: 'espn', season: importSeason })
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message ?? `Error ${res.status}`);
-      importStatus = `Done — ${result.teams ?? 0} teams, ${result.inserted} new players, ${result.updated} updated, ${result.rosterRows ?? 0} roster entries.`;
+      while (true) {
+        const res = await fetch('/api/trivia/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ databaseId: db.id, importType: 'espn', season: importSeason, offset, limit })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message ?? `Error ${res.status}`);
+
+        totalInserted += result.inserted ?? 0;
+        totalUpdated += result.updated ?? 0;
+        totalRosterRows += result.rosterRows ?? 0;
+        importProgress = { done: result.nextOffset, total: result.total };
+        importStatus = `Importing teams… ${result.nextOffset}/${result.total}`;
+
+        if (!result.hasMore) break;
+        offset = result.nextOffset;
+      }
+      importStatus = `Done — ${importProgress.total} teams, ${totalInserted} new players, ${totalUpdated} updated, ${totalRosterRows} roster entries.`;
       await invalidateAll();
     } catch (err) {
       importStatus = `Error: ${err.message}`;
@@ -326,6 +344,11 @@
             </button>
           </div>
           {#if importStatus && importDbId === db.id}
+            {#if importLoading && importProgress.total > 0}
+              <div class="stats-progress">
+                <div class="stats-bar" style="width: {Math.round(importProgress.done / importProgress.total * 100)}%"></div>
+              </div>
+            {/if}
             <p class="import-status" class:error={importStatus.startsWith('Error')}>{importStatus}</p>
           {/if}
         </div>
