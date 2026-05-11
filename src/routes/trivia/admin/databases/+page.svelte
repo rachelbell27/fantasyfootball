@@ -31,6 +31,12 @@
   let statsLoading = $state(false);
   let statsProgress = $state({ done: 0, total: 0 });
 
+  // Athlete detail import (draft info, headshots, etc.)
+  let detailsDbId = $state(null);
+  let detailsStatus = $state('');
+  let detailsLoading = $state(false);
+  let detailsProgress = $state({ done: 0, total: 0 });
+
   function slugify(str) {
     return str
       .toLowerCase()
@@ -163,6 +169,41 @@
       statsStatus = `Error: ${err.message}`;
     } finally {
       statsLoading = false;
+    }
+  }
+
+  async function importPlayerDetails(db) {
+    detailsDbId = db.id;
+    detailsStatus = 'Starting player detail import…';
+    detailsLoading = true;
+    detailsProgress = { done: 0, total: 0 };
+
+    let offset = 0;
+    const limit = 40;
+    let totalUpdated = 0;
+
+    try {
+      while (true) {
+        const res = await fetch('/api/trivia/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ databaseId: db.id, importType: 'espn-athlete-details', offset, limit })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message ?? `Error ${res.status}`);
+
+        totalUpdated += result.updated;
+        detailsProgress = { done: result.nextOffset, total: result.total };
+        detailsStatus = `Importing… ${result.nextOffset}/${result.total} players`;
+
+        if (!result.hasMore) break;
+        offset = result.nextOffset;
+      }
+      detailsStatus = `Done — updated ${totalUpdated} players with draft info, headshots, and measurements.`;
+    } catch (err) {
+      detailsStatus = `Error: ${err.message}`;
+    } finally {
+      detailsLoading = false;
     }
   }
 
@@ -384,6 +425,32 @@
               </div>
             {/if}
             <p class="import-status" class:error={statsStatus.startsWith('Error')}>{statsStatus}</p>
+          {/if}
+        </div>
+
+        <!-- ESPN athlete details import -->
+        <div class="import-block">
+          <p class="import-label db-sub">ESPN athlete details</p>
+          <p class="import-hint db-sub" style="font-size:11px">
+            Fills draft info (year, round, pick, team), college, headshot, height, and weight
+            for each player using individual ESPN athlete pages. Run after roster import.
+          </p>
+          <div class="import-row">
+            <button
+              class="db-btn"
+              onclick={() => importPlayerDetails(db)}
+              disabled={detailsLoading && detailsDbId === db.id}
+            >
+              {detailsLoading && detailsDbId === db.id ? 'Importing…' : 'Fill Player Details →'}
+            </button>
+          </div>
+          {#if detailsStatus && detailsDbId === db.id}
+            {#if detailsLoading && detailsProgress.total > 0}
+              <div class="stats-progress">
+                <div class="stats-bar" style="width: {Math.round(detailsProgress.done / detailsProgress.total * 100)}%"></div>
+              </div>
+            {/if}
+            <p class="import-status" class:error={detailsStatus.startsWith('Error')}>{detailsStatus}</p>
           {/if}
         </div>
       </div>

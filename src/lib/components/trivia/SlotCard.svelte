@@ -2,6 +2,12 @@
   let { slot, hintType = 'blank', found, revealed, playerName } = $props();
 
   const hd = $derived(slot.hintData ?? {});
+  let imgFailed = $state(false);
+
+  $effect(() => {
+    hd.headshot_url; // reset error flag when URL changes
+    imgFailed = false;
+  });
 
   function fmt(n) {
     if (n == null) return '—';
@@ -72,19 +78,13 @@
 
   {:else if hintType === 'player_headshot'}
     <div class="headshot-wrap">
-      {#if hd.headshot_url}
+      {#if hd.headshot_url && !imgFailed}
         <img
           src={hd.headshot_url}
           alt="Player"
           class="headshot"
-          onerror={e => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.remove('hidden'); }}
+          onerror={() => { imgFailed = true; }}
         />
-        <div class="headshot headshot-fallback hidden" aria-hidden="true">
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="15" r="7" fill="currentColor" opacity="0.3"/>
-            <path d="M4 36c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="currentColor" stroke-width="2" opacity="0.3"/>
-          </svg>
-        </div>
       {:else}
         <div class="headshot headshot-fallback" aria-hidden="true">
           <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">

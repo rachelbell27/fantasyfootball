@@ -15,6 +15,29 @@ async function getAdminUser(cookies, db) {
   return user;
 }
 
+export async function GET({ cookies }) {
+  const db = await createClient();
+  try {
+    const admin = await getAdminUser(cookies, db);
+    if (!admin) throw error(403, 'Forbidden');
+
+    const res = await db.query(`
+      SELECT table_name, column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name LIKE 'trivia_%'
+      ORDER BY table_name, ordinal_position
+    `);
+
+    const schema = {};
+    for (const { table_name, column_name, data_type } of res.rows) {
+      (schema[table_name] ??= []).push({ column: column_name, type: data_type });
+    }
+    return json(schema);
+  } finally {
+    await db.end();
+  }
+}
+
 export async function POST({ request, cookies }) {
   const db = await createClient();
   try {

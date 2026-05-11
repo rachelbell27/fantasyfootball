@@ -283,6 +283,18 @@
       if (data.added.length > 0) gameAnswers = [...gameAnswers, ...data.added];
     } catch (e) { sqlError = e.message; } finally { sqlRunning = false; }
   }
+
+  let showSchema = $state(false);
+  let schemaData = $state(null);
+
+  async function loadSchema() {
+    if (schemaData) { showSchema = !showSchema; return; }
+    try {
+      const res = await fetch('/api/trivia/admin/sql-fill');
+      if (res.ok) schemaData = await res.json();
+    } catch {}
+    showSchema = true;
+  }
 </script>
 
 <svelte:head><title>Games Admin · down bad ↓</title></svelte:head>
@@ -558,11 +570,26 @@
           </button>
           {#if showSqlFill}
             <div class="sql-fill-body">
-              <p class="db-sub sql-hint">Write a SELECT that returns an <code>id</code> column from <code>trivia_players</code>. Only SELECT is allowed — no writes.</p>
+              <p class="db-sub sql-hint">
+                Write any <code>SELECT</code> that returns an <code>id</code> column — join any <code>trivia_*</code> tables you need.
+                <button class="schema-link" onclick={loadSchema}>{showSchema ? 'Hide schema' : 'Show schema'}</button>
+              </p>
+
+              {#if showSchema && schemaData}
+                <div class="schema-viewer">
+                  {#each Object.entries(schemaData) as [table, cols]}
+                    <div class="schema-table">
+                      <span class="schema-table-name">{table}</span>
+                      <span class="schema-cols">{cols.map(c => c.column).join(', ')}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
               <textarea
                 class="db-input sql-input"
                 bind:value={sqlQuery}
-                placeholder="SELECT id FROM trivia_players WHERE college = 'Alabama'"
+                placeholder="SELECT tp.id FROM trivia_players tp JOIN trivia_rosters tr ON tr.player_id = tp.id JOIN trivia_teams tt ON tt.id = tr.team_id WHERE tt.abbreviation = 'KC'"
                 rows="4"
               ></textarea>
               {#if sqlError}<div class="form-error">{sqlError}</div>{/if}
@@ -570,7 +597,7 @@
                 <p class="sql-result">
                   Added {sqlResult.added.length}
                   {#if sqlResult.skipped > 0} · {sqlResult.skipped} already in game{/if}
-                  {#if sqlResult.notFound > 0} · {sqlResult.notFound} not found in databases{/if}
+                  {#if sqlResult.notFound > 0} · {sqlResult.notFound} not in this game's databases{/if}
                 </p>
               {/if}
               <button class="db-btn primary sm" onclick={runSqlFill} disabled={sqlRunning || !sqlQuery.trim()}>
@@ -735,6 +762,14 @@
   .sql-hint { font-size: 11px; margin: 0; }
   .sql-hint code { font-family: var(--font-mono, monospace); background: var(--bg-2); padding: 1px 4px; border-radius: 3px; }
   .sql-result { font-size: 12px; font-weight: 700; color: var(--good); margin: 0; }
+  .schema-link { background: none; border: none; cursor: pointer; font-size: 11px; color: var(--accent); padding: 0; text-decoration: underline; }
+  .schema-viewer {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto;
+  }
+  .schema-table { display: flex; gap: 8px; align-items: baseline; }
+  .schema-table-name { font-family: var(--font-mono, monospace); font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+  .schema-cols { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--ink-soft); line-height: 1.4; }
 
   /* Global overrides */
   :global(.db-btn.sm) { padding: 4px 10px; font-size: 12px; height: auto; }

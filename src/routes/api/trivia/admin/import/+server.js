@@ -303,6 +303,73 @@ async function getTeamLookupFromDb(db, databaseId) {
   return lookup;
 }
 
+// ── Athlete detail import (draft info, college, headshot, height, weight) ──
+
+async function importAthleteDetails(db, databaseId, espnLeague, offset, limit) {
+  const countRes = await db.query(
+    `SELECT COUNT(*)::int AS n FROM trivia_players WHERE database_id = $1 AND api_player_id IS NOT NULL`,
+    [databaseId]
+  );
+  const total = countRes.rows[0].n;
+
+  const playersRes = await db.query(
+    `SELECT id, api_player_id FROM trivia_players
+     WHERE database_id = $1 AND api_player_id IS NOT NULL
+     ORDER BY id LIMIT $2 OFFSET $3`,
+    [databaseId, limit, offset]
+  );
+
+  const rows = playersRes.rows;
+  let updated = 0;
+  console.log(`[athlete-details] offset=${offset} limit=${limit} fetching ${rows.length} of ${total}`);
+
+  const BATCH = 20;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(p =>
+        fetch(`${SITE}/${espnLeague}/athletes/${p.api_player_id}`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    );
+
+    for (let j = 0; j < batch.length; j++) {
+      const data = results[j];
+      if (!data) continue;
+      const ath = data.athlete ?? data;
+
+      const college    = ath.college?.name ?? null;
+      const draftYear  = ath.draft?.year ?? null;
+      const draftRound = ath.draft?.round ?? null;
+      const draftPick  = ath.draft?.selection ?? null;
+      const draftTeam  = ath.draft?.team?.displayName ?? null;
+      const headshotUrl = ath.headshot?.href ?? null;
+      const height     = ath.displayHeight ?? null;
+      const weight     = ath.weight ? Number(ath.weight) : null;
+
+      await db.query(
+        `UPDATE trivia_players SET
+           college      = COALESCE($1, college),
+           draft_year   = COALESCE($2, draft_year),
+           draft_round  = COALESCE($3, draft_round),
+           draft_pick   = COALESCE($4, draft_pick),
+           draft_team   = COALESCE($5, draft_team),
+           headshot_url = COALESCE($6, headshot_url),
+           height       = COALESCE($7, height),
+           weight       = COALESCE($8::smallint, weight)
+         WHERE id = $9`,
+        [college, draftYear, draftRound, draftPick, draftTeam, headshotUrl, height, weight, batch[j].id]
+      );
+      updated++;
+    }
+  }
+
+  const nextOffset = offset + rows.length;
+  console.log(`[athlete-details] updated ${updated}, nextOffset=${nextOffset}`);
+  return { updated, total, hasMore: nextOffset < total, nextOffset };
+}
+
 // ── Stats import ───────────────────────────────────────────────────────────
 
 const CORE = 'https://sports.core.api.espn.com/v2/sports/football';
@@ -525,7 +592,17 @@ export async function POST({ request, cookies }) {
     const limit = importType === 'espn-stats' ? (body.limit ?? 40) : (body.limit ?? 8);
     if (!databaseId) throw error(400, 'databaseId required');
 
-    if (importType === 'espn-stats') {
+    if (importType === 'espn-athlete-details') {
+      const dbRes = await db.query('SELECT slug FROM trivia_databases WHERE id = $1', [databaseId]);
+      const slug = dbRes.rows[0]?.slug;
+      const espnLeague = LEAGUE_MAP[slug];
+      if (!espnLeague) throw error(400, `No ESPN mapping for database slug "${slug}"`);
+
+      const lim = body.limit ?? 40;
+      const result = await importAthleteDetails(db, databaseId, espnLeague, offset, lim);
+      return json({ success: true, ...result });
+
+    } else if (importType === 'espn-stats') {
       if (!season) throw error(400, 'season is required for stats import');
       const dbRes = await db.query('SELECT slug FROM trivia_databases WHERE id = $1', [databaseId]);
       const slug = dbRes.rows[0]?.slug;
