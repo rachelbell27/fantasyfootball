@@ -38,25 +38,20 @@ export async function GET({ url, cookies }) {
         tp.id, tp.full_name, tp.aliases, tp.database_id,
         tp.college, tp.draft_year, tp.headshot_url,
         tdb.name AS database_name,
-        COALESCE(
-          JSON_AGG(
-            DISTINCT JSONB_BUILD_OBJECT(
-              'id',           tt.id,
-              'display_name', tt.display_name,
-              'abbreviation', tt.abbreviation,
-              'logo_url',     tt.logo_url,
-              'color',        tt.color,
-              'season',       tr.season
-            )
-          ) FILTER (WHERE tt.id IS NOT NULL),
-          '[]'::json
+        (
+          SELECT COALESCE(JSON_AGG(t_row), '[]'::json)
+          FROM (
+            SELECT DISTINCT ON (tt2.id)
+              tt2.id, tt2.display_name, tt2.abbreviation, tt2.logo_url, tt2.color
+            FROM trivia_rosters tr2
+            JOIN trivia_teams tt2 ON tt2.id = tr2.team_id
+            WHERE tr2.player_id = tp.id
+            ORDER BY tt2.id, tr2.season DESC
+          ) t_row
         ) AS teams
       FROM trivia_players tp
       JOIN trivia_databases tdb ON tdb.id = tp.database_id
-      LEFT JOIN trivia_rosters tr ON tr.player_id = tp.id
-      LEFT JOIN trivia_teams tt ON tt.id = tr.team_id
       WHERE tp.full_name ILIKE $1 ${dbFilter}
-      GROUP BY tp.id, tdb.name
       ORDER BY tp.full_name ASC
       LIMIT 20
     `, params);

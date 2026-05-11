@@ -149,6 +149,13 @@
   let gameAnswers = $state([]);
   let answerError = $state('');
 
+  // SQL fill
+  let showSqlFill = $state(false);
+  let sqlQuery = $state('');
+  let sqlRunning = $state(false);
+  let sqlResult = $state(null);
+  let sqlError = $state('');
+
   // Player search
   let searchQuery = $state('');
   let searchResults = $state([]);
@@ -182,7 +189,10 @@
     } catch (e) { gameAnswers = []; }
   }
 
-  function closeAnswerBuilder() { answerGameId = null; answerGame = null; gameAnswers = []; }
+  function closeAnswerBuilder() {
+    answerGameId = null; answerGame = null; gameAnswers = [];
+    sqlQuery = ''; sqlResult = null; sqlError = ''; showSqlFill = false;
+  }
 
   async function addAnswerToGame(player) {
     if (gameAnswers.find(a => a.player_id === player.id)) return;
@@ -193,13 +203,7 @@
 
       if (hintType === 'team_logo' || hintType === 'team_name') {
         const teams = player.teams ?? [];
-        if (teams.length === 1) {
-          hintData.display_team_id = teams[0].id;
-        } else if (teams.length > 1) {
-          // Sort by most recent season, pre-select newest
-          const sorted = [...teams].sort((a, b) => (b.season ?? 0) - (a.season ?? 0));
-          hintData.display_team_id = sorted[0].id;
-        }
+        if (teams.length >= 1) hintData.display_team_id = teams[0].id;
       }
 
       const res = await fetch('/api/trivia/admin/game-answers', {
@@ -244,6 +248,40 @@
         : a
       );
     } catch (err) { answerError = err.message; }
+  }
+
+  async function moveAnswer(index, dir) {
+    const swapIdx = index + dir;
+    if (swapIdx < 0 || swapIdx >= gameAnswers.length) return;
+    const next = [...gameAnswers];
+    [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+    next.forEach((a, i) => { next[i] = { ...a, sort_order: i }; });
+    gameAnswers = next;
+    await Promise.all([
+      fetch(`/api/trivia/admin/game-answers?id=${next[index].id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: next[index].sort_order }),
+      }),
+      fetch(`/api/trivia/admin/game-answers?id=${next[swapIdx].id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: next[swapIdx].sort_order }),
+      }),
+    ]);
+  }
+
+  async function runSqlFill() {
+    sqlError = ''; sqlResult = null; sqlRunning = true;
+    try {
+      const res = await fetch('/api/trivia/admin/sql-fill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: answerGameId, sql: sqlQuery }),
+      });
+      const data = await res.json();
+      if (!res.ok) { sqlError = data.message ?? `Error ${res.status}`; return; }
+      sqlResult = data;
+      if (data.added.length > 0) gameAnswers = [...gameAnswers, ...data.added];
+    } catch (e) { sqlError = e.message; } finally { sqlRunning = false; }
   }
 </script>
 
@@ -464,6 +502,10 @@
                 {#each gameAnswers as answer, i}
                   <div class="answer-item-wrap">
                     <div class="answer-item">
+                      <div class="sort-btns">
+                        <button class="sort-btn" onclick={() => moveAnswer(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                        <button class="sort-btn" onclick={() => moveAnswer(i, 1)} disabled={i === gameAnswers.length - 1} aria-label="Move down">↓</button>
+                      </div>
                       <span class="answer-num">{i + 1}.</span>
                       <span class="answer-name">{answer.full_name ?? '?'}</span>
                       {#if showStatPreview && answer.stat_preview != null}
@@ -472,7 +514,7 @@
                       <button class="db-btn sm danger" onclick={() => removeAnswerFromGame(answer.id)} aria-label="Remove">✕</button>
                     </div>
 
-                    <!-- Team selector for team_logo / team_name -->
+                    <!-- Team selector for team_logo / team_name — only when player has multiple distinct teams -->
                     {#if showTeamSelector && (answer.player_teams?.length ?? 0) > 1}
                       <div class="team-selector">
                         {#each answer.player_teams as team}
@@ -488,7 +530,6 @@
                               <img src={team.logo_url} alt={team.display_name} class="team-thumb" />
                             {/if}
                             <span>{team.display_name}</span>
-                            {#if team.season}<span class="db-sub team-season">'{String(team.season).slice(-2)}</span>{/if}
                           </label>
                         {/each}
                         <label class="team-radio-label">
@@ -508,6 +549,35 @@
               </div>
             {/if}
           </div>
+        </div>
+
+        <!-- SQL fill -->
+        <div class="sql-fill-section">
+          <button class="sql-toggle" onclick={() => { showSqlFill = !showSqlFill; sqlResult = null; sqlError = ''; }}>
+            {showSqlFill ? '▾' : '▸'} Fill from SQL SELECT
+          </button>
+          {#if showSqlFill}
+            <div class="sql-fill-body">
+              <p class="db-sub sql-hint">Write a SELECT that returns an <code>id</code> column from <code>trivia_players</code>. Only SELECT is allowed — no writes.</p>
+              <textarea
+                class="db-input sql-input"
+                bind:value={sqlQuery}
+                placeholder="SELECT id FROM trivia_players WHERE college = 'Alabama'"
+                rows="4"
+              ></textarea>
+              {#if sqlError}<div class="form-error">{sqlError}</div>{/if}
+              {#if sqlResult}
+                <p class="sql-result">
+                  Added {sqlResult.added.length}
+                  {#if sqlResult.skipped > 0} · {sqlResult.skipped} already in game{/if}
+                  {#if sqlResult.notFound > 0} · {sqlResult.notFound} not found in databases{/if}
+                </p>
+              {/if}
+              <button class="db-btn primary sm" onclick={runSqlFill} disabled={sqlRunning || !sqlQuery.trim()}>
+                {sqlRunning ? 'Running…' : 'Run query'}
+              </button>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
@@ -629,9 +699,18 @@
   .answer-name { flex: 1; font-size: 13px; font-weight: 600; }
   .stat-preview { font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
 
+  /* Sort buttons */
+  .sort-btns { display: flex; flex-direction: column; gap: 0; flex-shrink: 0; }
+  .sort-btn {
+    background: none; border: none; cursor: pointer; padding: 0 3px; line-height: 1.2;
+    font-size: 11px; color: var(--ink-soft);
+  }
+  .sort-btn:hover:not(:disabled) { color: var(--ink); }
+  .sort-btn:disabled { opacity: 0.2; cursor: default; }
+
   /* Team selector */
   .team-selector {
-    padding: 6px 8px 8px 28px;
+    padding: 6px 8px 8px 44px;
     display: flex; flex-direction: column; gap: 4px;
     border-top: 1px solid var(--line);
     margin-top: 0;
@@ -641,7 +720,21 @@
     font-size: 12px; font-weight: 600; cursor: pointer;
   }
   .team-thumb { width: 20px; height: 20px; object-fit: contain; }
-  .team-season { font-size: 11px; margin-left: 2px; }
+
+  /* SQL fill */
+  .sql-fill-section {
+    margin-top: 20px; border-top: 1px solid var(--line); padding-top: 14px;
+  }
+  .sql-toggle {
+    background: none; border: none; cursor: pointer; padding: 4px 0;
+    font-size: 13px; font-weight: 600; color: var(--ink-soft);
+  }
+  .sql-toggle:hover { color: var(--ink); }
+  .sql-fill-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .sql-input { font-family: var(--font-mono, monospace); font-size: 12px; resize: vertical; }
+  .sql-hint { font-size: 11px; margin: 0; }
+  .sql-hint code { font-family: var(--font-mono, monospace); background: var(--bg-2); padding: 1px 4px; border-radius: 3px; }
+  .sql-result { font-size: 12px; font-weight: 700; color: var(--good); margin: 0; }
 
   /* Global overrides */
   :global(.db-btn.sm) { padding: 4px 10px; font-size: 12px; height: auto; }

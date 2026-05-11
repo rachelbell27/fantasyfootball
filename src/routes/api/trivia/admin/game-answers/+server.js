@@ -47,25 +47,20 @@ export async function GET({ url, cookies }) {
         tga.id, tga.game_id, tga.player_id, tga.hint_data, tga.sort_order,
         tp.full_name, tp.aliases, tp.headshot_url,
         ${statSubquery}
-        COALESCE(
-          JSON_AGG(
-            DISTINCT JSONB_BUILD_OBJECT(
-              'id',           tt.id,
-              'display_name', tt.display_name,
-              'abbreviation', tt.abbreviation,
-              'logo_url',     tt.logo_url,
-              'color',        tt.color,
-              'season',       tr.season
-            )
-          ) FILTER (WHERE tt.id IS NOT NULL),
-          '[]'::json
+        (
+          SELECT COALESCE(JSON_AGG(t_row), '[]'::json)
+          FROM (
+            SELECT DISTINCT ON (tt3.id)
+              tt3.id, tt3.display_name, tt3.abbreviation, tt3.logo_url, tt3.color
+            FROM trivia_rosters rr
+            JOIN trivia_teams tt3 ON tt3.id = rr.team_id
+            WHERE rr.player_id = tp.id
+            ORDER BY tt3.id, rr.season DESC
+          ) t_row
         ) AS player_teams
       FROM trivia_game_answers tga
       JOIN trivia_players tp ON tp.id = tga.player_id
-      LEFT JOIN trivia_rosters tr ON tr.player_id = tp.id
-      LEFT JOIN trivia_teams tt ON tt.id = tr.team_id
       WHERE tga.game_id = $1
-      GROUP BY tga.id, tp.id
       ORDER BY tga.sort_order ASC, tga.id ASC
     `, [gameId]);
 
@@ -108,13 +103,19 @@ export async function PATCH({ url, request, cookies }) {
     const admin = await getAdminUser(cookies, db);
     if (!admin) throw error(403, 'Forbidden');
 
-    const { hintData } = await request.json();
-    if (hintData === undefined) throw error(400, 'hintData required');
+    const { hintData, sortOrder } = await request.json();
 
+    const cols = [];
+    const vals = [];
+    if (hintData !== undefined) { cols.push(`hint_data = $${vals.length + 1}`); vals.push(hintData); }
+    if (sortOrder !== undefined) { cols.push(`sort_order = $${vals.length + 1}`); vals.push(sortOrder); }
+    if (cols.length === 0) throw error(400, 'Nothing to update');
+
+    vals.push(id);
     const res = await db.query(
-      `UPDATE trivia_game_answers SET hint_data = $1 WHERE id = $2
+      `UPDATE trivia_game_answers SET ${cols.join(', ')} WHERE id = $${vals.length}
        RETURNING id, game_id, player_id, hint_data, sort_order`,
-      [hintData, id]
+      vals
     );
     if (res.rows.length === 0) throw error(404, 'Answer not found');
     return json(res.rows[0]);
