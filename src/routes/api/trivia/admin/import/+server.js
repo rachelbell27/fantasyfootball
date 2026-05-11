@@ -14,17 +14,31 @@ async function getAdminUser(cookies, db) {
 }
 
 async function ensureSchema(db) {
+  // Must create in dependency order: databases → players → teams → rosters
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS trivia_databases (
+      id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL,
+      slug VARCHAR(50) UNIQUE NOT NULL, api_league_id INTEGER,
+      description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS trivia_players (
+      id SERIAL PRIMARY KEY,
+      database_id INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
+      full_name VARCHAR(150) NOT NULL, aliases TEXT[], metadata JSONB,
+      api_player_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(api_player_id, database_id)
+    )
+  `);
   await db.query(`
     CREATE TABLE IF NOT EXISTS trivia_teams (
       id           SERIAL PRIMARY KEY,
       database_id  INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
       espn_id      VARCHAR(20) NOT NULL,
       display_name VARCHAR(150) NOT NULL,
-      abbreviation VARCHAR(10),
-      location     VARCHAR(100),
-      slug         VARCHAR(100),
-      logo_url     TEXT,
-      color        VARCHAR(7),
+      abbreviation VARCHAR(10), location VARCHAR(100), slug VARCHAR(100),
+      logo_url TEXT, color VARCHAR(7),
       created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(database_id, espn_id)
     )
@@ -34,12 +48,17 @@ async function ensureSchema(db) {
       id        SERIAL PRIMARY KEY,
       team_id   INTEGER REFERENCES trivia_teams(id) ON DELETE CASCADE,
       player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
-      season    INTEGER NOT NULL,
-      position  VARCHAR(10),
-      jersey    VARCHAR(5),
+      season    INTEGER NOT NULL, position VARCHAR(10), jersey VARCHAR(5),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(team_id, player_id, season)
     )
+  `);
+  // Seed default databases
+  await db.query(`
+    INSERT INTO trivia_databases (name, slug, description) VALUES
+      ('NFL', 'nfl', 'National Football League'),
+      ('College Football', 'college-football', 'NCAA Division I Football (FBS)')
+    ON CONFLICT (slug) DO NOTHING
   `);
 }
 
@@ -299,7 +318,7 @@ export async function POST({ request, cookies }) {
     const admin = await getAdminUser(cookies, db);
     if (!admin) throw error(403, 'Forbidden');
 
-    await ensureSchema(db);
+    await ensureSchema(db).catch(e => { throw error(500, `Schema setup failed: ${e.message}`); });
 
     const body = await request.json();
     const { databaseId, importType, season, players } = body;
@@ -342,6 +361,11 @@ export async function POST({ request, cookies }) {
     } else {
       throw error(400, 'importType=espn with season, or players array required');
     }
+  } catch (e) {
+    // Re-throw SvelteKit errors (they already carry status codes)
+    if (e?.status) throw e;
+    // Return plain errors as JSON so the UI sees a message instead of an HTML 500 page
+    return json({ message: e?.message ?? 'Unknown error' }, { status: 500 });
   } finally {
     await db.end();
   }
