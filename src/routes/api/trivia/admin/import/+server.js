@@ -323,30 +323,57 @@ async function importAthleteDetails(db, databaseId, espnLeague, offset, limit) {
   let updated = 0;
   console.log(`[athlete-details] offset=${offset} limit=${limit} fetching ${rows.length} of ${total}`);
 
+  // Headshot CDN URL — constructed directly from ESPN player ID, no API call needed
+  const headshotBase = espnLeague === 'nfl'
+    ? 'https://a.espncdn.com/i/headshots/nfl/players/full'
+    : 'https://a.espncdn.com/i/headshots/college-football/players/full';
+
   const BATCH = 20;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
+
+    // Core API has draft info, height, weight — site API /athletes endpoint doesn't exist
     const results = await Promise.all(
       batch.map(p =>
-        fetch(`${SITE}/${espnLeague}/athletes/${p.api_player_id}`)
-          .then(r => r.ok ? r.json() : null)
-          .catch(() => null)
+        fetch(`${CORE}/leagues/${espnLeague}/athletes/${p.api_player_id}`)
+          .then(r => {
+            if (!r.ok) {
+              if (i === 0 && batch[0] === p) console.warn(`[athlete-details] core API ${r.status} for espnId ${p.api_player_id}`);
+              return null;
+            }
+            return r.json();
+          })
+          .catch(e => { console.warn('[athlete-details] fetch error:', e.message); return null; })
       )
     );
 
-    for (let j = 0; j < batch.length; j++) {
-      const data = results[j];
-      if (!data) continue;
-      const ath = data.athlete ?? data;
+    if (i === 0 && results[0]) {
+      const s = results[0];
+      console.log('[athlete-details] sample keys:', Object.keys(s).slice(0, 15).join(', '));
+      console.log('[athlete-details] draft:', JSON.stringify(s.draft));
+      console.log('[athlete-details] college:', JSON.stringify(s.college));
+    }
 
-      const college    = ath.college?.name ?? null;
-      const draftYear  = ath.draft?.year ?? null;
-      const draftRound = ath.draft?.round ?? null;
-      const draftPick  = ath.draft?.selection ?? null;
-      const draftTeam  = ath.draft?.team?.displayName ?? null;
-      const headshotUrl = ath.headshot?.href ?? null;
-      const height     = ath.displayHeight ?? null;
-      const weight     = ath.weight ? Number(ath.weight) : null;
+    for (let j = 0; j < batch.length; j++) {
+      const espnId = batch[j].api_player_id;
+      // Always set headshot from CDN — reliable even when core API returns nothing
+      const headshotUrl = `${headshotBase}/${espnId}.png`;
+
+      let college = null, draftYear = null, draftRound = null, draftPick = null, draftTeam = null;
+      let height = null, weight = null;
+
+      const data = results[j];
+      if (data) {
+        const ath = data.athlete ?? data;
+        college    = ath.college?.name ?? null;
+        draftYear  = ath.draft?.year ?? null;
+        draftRound = ath.draft?.round ?? null;
+        draftPick  = ath.draft?.selection ?? null;
+        // draft.team may be a $ref with no inline name — use what we can
+        draftTeam  = ath.draft?.team?.displayName ?? ath.draft?.team?.name ?? null;
+        height     = ath.displayHeight ?? null;
+        weight     = ath.weight ? Number(ath.weight) : null;
+      }
 
       await db.query(
         `UPDATE trivia_players SET
@@ -355,7 +382,7 @@ async function importAthleteDetails(db, databaseId, espnLeague, offset, limit) {
            draft_round  = COALESCE($3, draft_round),
            draft_pick   = COALESCE($4, draft_pick),
            draft_team   = COALESCE($5, draft_team),
-           headshot_url = COALESCE($6, headshot_url),
+           headshot_url = $6,
            height       = COALESCE($7, height),
            weight       = COALESCE($8::smallint, weight)
          WHERE id = $9`,
