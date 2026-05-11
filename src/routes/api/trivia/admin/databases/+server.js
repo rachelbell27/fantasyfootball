@@ -40,6 +40,23 @@ export async function GET({ cookies }) {
       )
     `);
     await db.query(`ALTER TABLE trivia_rosters ADD COLUMN IF NOT EXISTS stats JSONB DEFAULT '{}'`);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS trivia_player_stats (
+        id SERIAL PRIMARY KEY,
+        roster_id INTEGER REFERENCES trivia_rosters(id) ON DELETE CASCADE,
+        player_id INTEGER REFERENCES trivia_players(id) ON DELETE CASCADE,
+        season INTEGER NOT NULL,
+        games_played INTEGER,
+        pass_completions INTEGER, pass_attempts INTEGER, pass_yards INTEGER,
+        pass_touchdowns INTEGER, pass_interceptions INTEGER, passer_rating NUMERIC(6,1),
+        rush_attempts INTEGER, rush_yards INTEGER, rush_touchdowns INTEGER,
+        receptions INTEGER, targets INTEGER, rec_yards INTEGER, rec_touchdowns INTEGER,
+        total_tackles INTEGER, solo_tackles INTEGER, sacks NUMERIC(5,1),
+        def_interceptions INTEGER, forced_fumbles INTEGER, passes_defended INTEGER,
+        fg_made INTEGER, fg_attempted INTEGER, xp_made INTEGER, xp_attempted INTEGER,
+        UNIQUE(roster_id)
+      )
+    `);
 
     const res = await db.query(`
       SELECT
