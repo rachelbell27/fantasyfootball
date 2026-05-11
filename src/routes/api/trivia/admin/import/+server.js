@@ -73,10 +73,13 @@ const LEAGUE_MAP = {
 // ── Teams ──────────────────────────────────────────────────────────────────
 
 async function upsertTeams(db, databaseId, espnLeague) {
-  const resp = await fetch(`${SITE}/${espnLeague}/teams?limit=200`);
+  const url = `${SITE}/${espnLeague}/teams?limit=200`;
+  console.log('[import] fetching teams:', url);
+  const resp = await fetch(url);
   if (!resp.ok) throw error(502, `ESPN /teams: ${resp.status}`);
   const data = await resp.json();
   const teams = (data.sports?.[0]?.leagues?.[0]?.teams ?? []).map(t => t.team).filter(t => t?.id);
+  console.log('[import] teams found:', teams.length);
 
   const teamLookup = {}; // espn_id (string) → { id: db_pk, displayName }
 
@@ -113,14 +116,19 @@ async function fetchRostersFromTeams(teamLookup, espnLeague) {
   const teamIds = Object.keys(teamLookup);
   const BATCH = 10;
   const players = [];
+  console.log('[import] fetching rosters for', teamIds.length, 'teams in batches of', BATCH);
 
   for (let i = 0; i < teamIds.length; i += BATCH) {
     const batch = teamIds.slice(i, i + BATCH);
+    console.log(`[import] roster batch ${Math.floor(i / BATCH) + 1}: teams`, batch.join(','));
     const results = await Promise.all(
       batch.map(espnTeamId =>
         fetch(`${SITE}/${espnLeague}/teams/${espnTeamId}/roster`)
-          .then(r => r.ok ? r.json() : null)
-          .catch(() => null)
+          .then(r => {
+            if (!r.ok) { console.warn(`[import] roster fetch failed for team ${espnTeamId}: ${r.status}`); return null; }
+            return r.json();
+          })
+          .catch(e => { console.warn(`[import] roster fetch error for team ${espnTeamId}:`, e.message); return null; })
       )
     );
 
@@ -129,6 +137,7 @@ async function fetchRostersFromTeams(teamLookup, espnLeague) {
       const espnTeamId = batch[j];
       if (!data) continue;
 
+      let teamPlayerCount = 0;
       for (const group of data.athletes ?? []) {
         for (const player of group.items ?? []) {
           const fullName = player.fullName ?? [player.firstName, player.lastName].filter(Boolean).join(' ');
@@ -141,17 +150,21 @@ async function fetchRostersFromTeams(teamLookup, espnLeague) {
             jersey:     player.jersey ?? null,
             espnTeamId,
           });
+          teamPlayerCount++;
         }
       }
+      console.log(`[import]   team ${espnTeamId}: ${teamPlayerCount} players`);
     }
   }
 
+  console.log('[import] total players parsed:', players.length);
   return players;
 }
 
 // ── DB upsert (players + rosters) ──────────────────────────────────────────
 
 async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, season) {
+  console.log('[import] saving', parsedPlayers.length, 'players for season', season);
   let inserted = 0, updated = 0, rosterRows = 0;
 
   // Collect roster entries separately to batch-insert after player upserts
@@ -205,6 +218,8 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
       rosterPlan.push({ teamDbId: teamInfo.id, playerDbId: row.id });
     }
   }
+
+  console.log('[import] players upserted — inserted:', inserted, 'updated:', updated, 'roster plan:', rosterPlan.length);
 
   // Bulk insert roster entries
   if (rosterPlan.length > 0) {
@@ -304,6 +319,7 @@ export async function POST({ request, cookies }) {
   } catch (e) {
     // Re-throw SvelteKit errors (they already carry status codes)
     if (e?.status) throw e;
+    console.error('[import] unhandled error:', e?.message, e?.stack);
     // Return plain errors as JSON so the UI sees a message instead of an HTML 500 page
     return json({ message: e?.message ?? 'Unknown error' }, { status: 500 });
   } finally {
