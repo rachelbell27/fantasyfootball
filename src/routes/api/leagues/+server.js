@@ -28,6 +28,10 @@ export async function GET({ cookies }) {
        FROM leagues ORDER BY sort_order ASC, id ASC`
     );
     return json(result.rows);
+  } catch (e) {
+    if (e.status) throw e; // re-throw SvelteKit HttpErrors (401, 403, etc.)
+    console.error('[GET /api/leagues]', e.message);
+    throw error(500, e.message);
   } finally {
     await db.end();
   }
@@ -51,6 +55,10 @@ export async function POST({ request, cookies }) {
        expiration_date || null, winner || null]
     );
     return json(result.rows[0], { status: 201 });
+  } catch (e) {
+    if (e.status) throw e;
+    console.error('[POST /api/leagues]', e.message);
+    throw error(500, e.message);
   } finally {
     await db.end();
   }

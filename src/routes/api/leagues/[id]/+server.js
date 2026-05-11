@@ -37,6 +37,10 @@ export async function PUT({ params, request, cookies }) {
     );
     if (result.rows.length === 0) throw error(404, 'Not found');
     return json(result.rows[0]);
+  } catch (e) {
+    if (e.status) throw e;
+    console.error('[PUT /api/leagues/:id]', e.message);
+    throw error(500, e.message);
   } finally {
     await db.end();
   }
@@ -51,6 +55,10 @@ export async function DELETE({ params, cookies }) {
 
     await db.query('DELETE FROM leagues WHERE id = $1', [params.id]);
     return json({ ok: true });
+  } catch (e) {
+    if (e.status) throw e;
+    console.error('[DELETE /api/leagues/:id]', e.message);
+    throw error(500, e.message);
   } finally {
     await db.end();
   }
