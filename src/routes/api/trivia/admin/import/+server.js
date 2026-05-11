@@ -27,10 +27,19 @@ async function ensureSchema(db) {
       id SERIAL PRIMARY KEY,
       database_id INTEGER REFERENCES trivia_databases(id) ON DELETE CASCADE,
       full_name VARCHAR(150) NOT NULL, aliases TEXT[], metadata JSONB,
-      api_player_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      api_player_id INTEGER,
+      college VARCHAR(150),
+      draft_year SMALLINT, draft_round SMALLINT, draft_pick SMALLINT,
+      draft_team VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(api_player_id, database_id)
     )
   `);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS college VARCHAR(150)`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_year SMALLINT`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_round SMALLINT`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_pick SMALLINT`);
+  await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS draft_team VARCHAR(100)`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS trivia_teams (
       id           SERIAL PRIMARY KEY,
@@ -145,12 +154,17 @@ async function fetchRostersFromTeams(teamLookup, espnLeague) {
           const fullName = player.fullName ?? [player.firstName, player.lastName].filter(Boolean).join(' ');
           if (!fullName) continue;
           players.push({
-            espnId:     String(player.id),
+            espnId:      String(player.id),
             fullName,
-            shortName:  player.shortName ?? null,
-            position:   player.position?.abbreviation ?? null,
-            jersey:     player.jersey ?? null,
+            shortName:   player.shortName ?? null,
+            position:    player.position?.abbreviation ?? null,
+            jersey:      player.jersey ?? null,
             espnTeamId,
+            college:     player.college?.name ?? null,
+            draftYear:   player.draft?.year ?? null,
+            draftRound:  player.draft?.round ?? null,
+            draftPick:   player.draft?.selection ?? null,
+            draftTeam:   player.draft?.team?.displayName ?? null,
           });
           teamPlayerCount++;
         }
@@ -183,11 +197,18 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
     };
 
     const res = await db.query(
-      `INSERT INTO trivia_players (database_id, full_name, aliases, metadata, api_player_id)
-       VALUES ($1,$2,$3,$4,$5)
+      `INSERT INTO trivia_players
+         (database_id, full_name, aliases, metadata, api_player_id,
+          college, draft_year, draft_round, draft_pick, draft_team)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (api_player_id, database_id) DO UPDATE
-         SET full_name = EXCLUDED.full_name,
-             aliases   = EXCLUDED.aliases,
+         SET full_name  = EXCLUDED.full_name,
+             aliases    = EXCLUDED.aliases,
+             college    = COALESCE(EXCLUDED.college,    trivia_players.college),
+             draft_year = COALESCE(EXCLUDED.draft_year, trivia_players.draft_year),
+             draft_round= COALESCE(EXCLUDED.draft_round,trivia_players.draft_round),
+             draft_pick = COALESCE(EXCLUDED.draft_pick, trivia_players.draft_pick),
+             draft_team = COALESCE(EXCLUDED.draft_team, trivia_players.draft_team),
              metadata  = jsonb_strip_nulls(
                trivia_players.metadata || jsonb_build_object(
                  'position', EXCLUDED.metadata->>'position',
@@ -210,7 +231,8 @@ async function savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, 
                )
              )
        RETURNING id, (xmax = 0) AS is_insert`,
-      [databaseId, p.fullName, aliases, metadata, Number(p.espnId)]
+      [databaseId, p.fullName, aliases, metadata, Number(p.espnId),
+       p.college ?? null, p.draftYear ?? null, p.draftRound ?? null, p.draftPick ?? null, p.draftTeam ?? null]
     );
 
     const row = res.rows[0];
