@@ -63,7 +63,6 @@ async function ensureSchema(db) {
 }
 
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/football';
-const CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues';
 
 const LEAGUE_MAP = {
   'nfl':              'nfl',
@@ -107,58 +106,6 @@ async function upsertTeams(db, databaseId, espnLeague) {
   return teamLookup;
 }
 
-// ── NFL: core API athlete list → batch detail fetch ────────────────────────
-
-async function fetchNflAthletes(season) {
-  const athleteIds = new Set();
-  let page = 1;
-  let pageCount = 1;
-  const MAX_PAGES = 10; // active=true should give ≤2 pages for NFL; cap as safety net
-
-  while (page <= pageCount && page <= MAX_PAGES) {
-    const url = `${CORE}/nfl/seasons/${season}/athletes?active=true&limit=1000&page=${page}`;
-    const resp = await fetch(url);
-    if (!resp.ok) break;
-    const data = await resp.json();
-    if (page === 1) pageCount = data.pageCount ?? 1;
-    for (const item of data.items ?? []) {
-      const m = item.$ref?.match(/\/athletes\/(\d+)/);
-      if (m) athleteIds.add(m[1]);
-    }
-    page++;
-  }
-
-  // Batch-fetch athlete details (100 parallel at a time)
-  const ids = Array.from(athleteIds);
-  const BATCH = 100;
-  const athletes = [];
-
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const batch = ids.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.map(id =>
-        fetch(`${CORE}/nfl/seasons/${season}/athletes/${id}`)
-          .then(r => r.ok ? r.json() : null)
-          .catch(() => null)
-      )
-    );
-    athletes.push(...results.filter(Boolean));
-  }
-
-  return athletes.map(a => {
-    const fullName = a.fullName ?? [a.firstName, a.lastName].filter(Boolean).join(' ');
-    if (!fullName) return null;
-    const teamMatch = a.team?.$ref?.match(/\/teams\/(\d+)/);
-    return {
-      espnId:      String(a.id),
-      fullName,
-      shortName:   a.shortName ?? null,
-      position:    a.position?.abbreviation ?? null,
-      jersey:      a.jersey ?? null,
-      espnTeamId:  teamMatch?.[1] ?? null,
-    };
-  }).filter(Boolean);
-}
 
 // ── CFB / others: site API team-by-team rosters (inline data) ──────────────
 
@@ -335,15 +282,8 @@ export async function POST({ request, cookies }) {
       // 1. Import teams first (needed for roster linkage)
       const teamLookup = await upsertTeams(db, databaseId, espnLeague);
 
-      // 2. Fetch athletes — strategy depends on league
-      let parsedPlayers;
-      if (espnLeague === 'nfl') {
-        // Core API: season-specific athlete list → batch detail fetches
-        parsedPlayers = await fetchNflAthletes(season);
-      } else {
-        // Site API: team-by-team inline rosters (handles large CFB team count)
-        parsedPlayers = await fetchRostersFromTeams(teamLookup, espnLeague);
-      }
+      // 2. Fetch athletes via site API team rosters (inline data, no per-player fetches)
+      const parsedPlayers = await fetchRostersFromTeams(teamLookup, espnLeague);
 
       // 3. Upsert players + roster entries
       const result = await savePlayersAndRosters(db, databaseId, teamLookup, parsedPlayers, season);
