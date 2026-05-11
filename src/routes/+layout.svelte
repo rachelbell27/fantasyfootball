@@ -114,7 +114,19 @@
       </div>
     </div>
 
-    <a href="/league" class="db-nav-link" class:active={$page.url.pathname.startsWith('/league')}>The League</a>
+    <div class="db-nav-group">
+      <a href="/league" class="db-nav-link" class:active={$page.url.pathname.startsWith('/league')}>
+        The League ▾
+      </a>
+      <div class="db-dropdown">
+        <a href="/league" class="db-dropdown-item" class:active={$page.url.pathname === '/league'}>Overview</a>
+        <a href="/league/rules" class="db-dropdown-item" class:active={$page.url.pathname === '/league/rules'}>Rulebook</a>
+        {#if data.profile?.is_admin || data.profile?.is_commissioner}
+          <div class="db-dropdown-divider"></div>
+          <a href="/league/applicants" class="db-dropdown-item" class:active={$page.url.pathname === '/league/applicants'}>Applications</a>
+        {/if}
+      </div>
+    </div>
 
     <a href="/apply" class="db-nav-link" class:active={$page.url.pathname === '/apply'}>Apply</a>
 

@@ -52,12 +52,6 @@
 <div class="db-page">
   <div style="max-width:720px;margin:0 auto">
 
-    <!-- Sub-nav -->
-    <div class="league-tabs">
-      <a href="/league" class="league-tab">Overview</a>
-      <a href="/league/rules" class="league-tab active">Rules</a>
-    </div>
-
     <!-- Rulebook header -->
     <div class="rb-header">
       <div class="rb-eyebrow">Official League Rulebook — v1.3</div>
@@ -179,29 +173,6 @@
 </div>
 
 <style>
-  /* Sub-nav */
-  .league-tabs {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 32px;
-    border-bottom: 1px solid var(--border);
-  }
-  .league-tab {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg-3);
-    text-decoration: none;
-    padding: 8px 16px;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .league-tab:hover { color: var(--fg-1); }
-  .league-tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-
   /* Header */
   .rb-header {
     margin-bottom: 40px;

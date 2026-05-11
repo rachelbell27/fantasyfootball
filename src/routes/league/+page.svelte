@@ -89,12 +89,6 @@
 <div class="db-page">
   <div style="max-width:720px;margin:0 auto">
 
-    <!-- Sub-nav -->
-    <div class="league-tabs">
-      <a href="/league" class="league-tab active">Overview</a>
-      <a href="/league/rules" class="league-tab">Rules</a>
-    </div>
-
     <div style="margin-bottom:24px">
       <div class="db-card-h">The League 🏆</div>
       <p class="db-sub" style="margin-top:8px;font-size:14px;line-height:1.6">
@@ -280,28 +274,6 @@
 </div>
 
 <style>
-  .league-tabs {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 28px;
-    border-bottom: 1px solid var(--border);
-  }
-  .league-tab {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg-3);
-    text-decoration: none;
-    padding: 8px 16px;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .league-tab:hover { color: var(--fg-1); }
-  .league-tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-
   .leagues-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
