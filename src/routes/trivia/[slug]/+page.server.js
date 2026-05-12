@@ -20,11 +20,10 @@ export async function load({ parent, params }) {
     const game = gameRes.rows[0];
     const hintType = game.hint_type ?? 'blank';
 
-    // Base slot query — always join player for name/headshot/college
+    // Base slot query — always join player for name/headshot
     const slotsRes = await db.query(
       `SELECT tga.id, tga.hint_data, tga.sort_order,
-              tp.id AS player_id, tp.full_name, tp.headshot_url,
-              tp.college, tp.college_espn_id
+              tp.id AS player_id, tp.full_name, tp.headshot_url
        FROM trivia_game_answers tga
        JOIN trivia_players tp ON tp.id = tga.player_id
        WHERE tga.game_id = $1
@@ -112,22 +111,39 @@ export async function load({ parent, params }) {
       });
 
     } else if (hintType === 'college_name') {
+      const playerIds = rawSlots.map(r => r.player_id);
+      const cRes = await db.query(
+        `SELECT id, college FROM trivia_players WHERE id = ANY($1)`,
+        [playerIds]
+      );
+      const collegeMap = Object.fromEntries(cRes.rows.map(r => [r.id, r.college]));
       slots = rawSlots.map(r => ({
         id: r.id, sort_order: r.sort_order,
-        hintData: { ...r.hint_data, college_name: r.college ?? null },
+        hintData: { ...r.hint_data, college_name: collegeMap[r.player_id] ?? null },
       }));
 
     } else if (hintType === 'college_logo') {
-      slots = rawSlots.map(r => ({
-        id: r.id, sort_order: r.sort_order,
-        hintData: {
-          ...r.hint_data,
-          college_name: r.college ?? null,
-          college_logo_url: r.college_espn_id
-            ? `https://a.espncdn.com/i/teamlogos/colleges/500/${r.college_espn_id}.png`
-            : null,
-        },
-      }));
+      // Ensure the column exists (no-op after first run)
+      await db.query(`ALTER TABLE trivia_players ADD COLUMN IF NOT EXISTS college_espn_id INTEGER`);
+      const playerIds = rawSlots.map(r => r.player_id);
+      const cRes = await db.query(
+        `SELECT id, college, college_espn_id FROM trivia_players WHERE id = ANY($1)`,
+        [playerIds]
+      );
+      const collegeMap = Object.fromEntries(cRes.rows.map(r => [r.id, r]));
+      slots = rawSlots.map(r => {
+        const c = collegeMap[r.player_id] ?? {};
+        return {
+          id: r.id, sort_order: r.sort_order,
+          hintData: {
+            ...r.hint_data,
+            college_name: c.college ?? null,
+            college_logo_url: c.college_espn_id
+              ? `https://a.espncdn.com/i/teamlogos/colleges/500/${c.college_espn_id}.png`
+              : null,
+          },
+        };
+      });
 
     } else if (hintType === 'stat_line' && VALID_STAT_KEYS.includes(game.hint_stat_field)) {
       const field = game.hint_stat_field;
